@@ -164,30 +164,25 @@ def evs(b, w=defaultweight, evs=evs):
     ret += " = " + str(int(evf(b,w=w)))
     return ret
 
-def guessN(b, n=3, w=defaultweight):
-    def acc(bcs):
-        bcs = list(bcs)
-        if len(bcs) == 0:
-            return 0
-        return sum(bcs) / len(bcs)
-
-    b2 = inp(definelize(b), [2,4])
-    
+def guessN(b1, n=3, w=defaultweight, player=True, a=float('-inf'), b=float('inf')):
     if n == 0:
-        #return acc(evf(x, w) for x in b2)
-        return evf(b, w)
+        return evf(b1, w)
     
-    ret = 0
-    for d in range(4):
-        dcs = []
-        b2s = set(finalize(T.mov(x, d)) for x in b2 if cmv(x, d))
-        for b3 in b2s:
-            dcs.append(guessN(b3, n-1, w))
-        ret = max(ret, acc(dcs))
-    return ret
+    if player:
+        for b2 in [T.mov(b1, d) for d in range(4) if cmv(b1, d)]:
+            a = max(a, guessN(b2, n=n-1, w=w, player=not player, a=a, b=b))
+            if a >= b:
+                return b
+        return a
+    else:
+        for b2 in inp(b1, [2,4]):
+            b = min(b, guessN(b2, n=n-1, w=w, player=not player, a=a, b=b))
+            if a >= b:
+                return a
+        return b
 
-def guess(b, n=2, w=defaultweight):
-    b2 = [(guessN(T.mov(b, d), n=n, w=w), d) for d in range(4) if cmv(b, d)]
+def guess(b, n=6, w=defaultweight):
+    b2 = [(guessN(T.mov(b, d), n=n, w=w, player=False), d) for d in range(4) if cmv(b, d)]
     if b2 == []:
         return -1,0
     else:
@@ -228,7 +223,8 @@ def proc(Q):
         Q.task_done()
 
 def main():
-    run2048()
+    #run2048()
+    run2048(API=T.Local)
 
 def mkb(s):
     return [[int(x) for x in i.split()] for i in s.split(',')]
