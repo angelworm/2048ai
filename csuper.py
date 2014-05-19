@@ -3,4 +3,4 @@ pyximport.install()
 import supercalifragilisticexpialidocious
 supercalifragilisticexpialidocious.main()
 
-#python -m cProfile test.py
+#python -m cProfile csuper.py

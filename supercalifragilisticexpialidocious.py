@@ -2,55 +2,14 @@
 import random
 import copy
 import urllib as urllib2
+import urllib
 import urllib.request as urllib2
 import json
 import math
-
-def rotC(b):
-    """ 時計回りに回転 """
-    return [list(reversed(a)) for a in zip(*b)]
-def rotA(b):
-    """ 反時計回りに回転 """
-    return [list(a) for a in zip(*[reversed(x) for x in b])]
-def rotR(b):
-    """ 左右反転 """
-    return [list(reversed(a)) for a in b]
-
-
-def movL(b):
-    """ 左に動く """
-    ret = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
-    for y in range(4):
-        minl = 0
-        for x in range(minl, 4):
-            if b[y][x] == 0:
-                pass
-            elif ret[y][minl] == 0:
-                ret[y][minl] = b[y][x]
-            elif ret[y][minl] == b[y][x]:
-                ret[y][minl] = b[y][x] * 2
-                minl += 1
-            else:
-                ret[y][minl+1] = b[y][x]
-                minl += 1
-                                
-    return ret
-
-def mov(b, d):
-    """ 上右下左: 0123 """
-    if d == 0:
-        return rotC(movL(rotA(b)))
-    elif d == 1:
-        return rotR(movL(rotR(b)))
-    elif d == 2:
-        return rotA(movL(rotC(b)))
-    elif d == 3:
-        return movL(b)
-    else:
-        print("none move")
+import taas as T
     
 def cmv(b,d):
-    return b != mov(b,d)
+    return b != T.mov(b,d)
 
 def inp(b, vs):
     "vsの要素を埋め込んだbを量産"
@@ -69,7 +28,7 @@ def nxt(b):
     ret = set()
     for b2 in inp(b, [2,4]):
         for d in range(4):
-            ret.add(finalize(mov(b2, d)))
+            ret.add(finalize(T.mov(b2, d)))
     return ret
 
 def finalize(b):
@@ -84,27 +43,6 @@ def PM(x):
             print(j,end="\t")
         print()
     print
-    
-class API:
-    def __init__(self, serv):
-        self.serv = serv
-        st = self.start()
-        self.sess = st['session_id']
-        self.update(st)
-
-    def start(self):
-        return json.loads(str(urllib2.urlopen(self.serv + "/hi/start/json").read(), 'ascii'))
-
-    def move(self, d):
-        st = json.loads(str(urllib2.urlopen(self.serv + "/hi/state/" + self.sess + "/move/" + d + "/json").read(), 'ascii'))
-        self.update(st)
-        return self.board
-
-    def update(self, st):
-        self.board = st['grid']
-        self.over = st['over']
-        self.moved = st['moved']
-        self.score = st['score']
 
 def norm(l):
     l = list(l)
@@ -137,7 +75,7 @@ def ev_step(b):
             return 1
         return 0
 
-    b2 = [b, rotC(b)]
+    b2 = [b, T.rotC(b)]
     
     ret = 0
     for b in b2:
@@ -159,7 +97,7 @@ def ev_step(b):
     return ret
 
 def ev_eq(b):
-    b2 = [b, rotC(b)]
+    b2 = [b, T.rotC(b)]
     
     ret = 0
     for b in b2:
@@ -191,7 +129,7 @@ def ev_hole(b):
     return sum(sum(1 for x in l if x == 0) for l in b)
 
 def ev_di(b):
-    b2 = [b, rotC(b)]
+    b2 = [b, T.rotC(b)]
     
     ret = 0
     for b in b2:
@@ -242,14 +180,14 @@ def guessN(b, n=3, w=defaultweight):
     ret = 0
     for d in range(4):
         dcs = []
-        b2s = set(finalize(mov(x, d)) for x in b2 if cmv(x, d))
+        b2s = set(finalize(T.mov(x, d)) for x in b2 if cmv(x, d))
         for b3 in b2s:
             dcs.append(guessN(b3, n-1, w))
         ret = max(ret, acc(dcs))
     return ret
 
 def guess(b, n=2, w=defaultweight):
-    b2 = [(guessN(mov(b, d), n=n, w=w), d) for d in range(4) if cmv(b, d)]
+    b2 = [(guessN(T.mov(b, d), n=n, w=w), d) for d in range(4) if cmv(b, d)]
     if b2 == []:
         return -1,0
     else:
@@ -258,7 +196,7 @@ def guess(b, n=2, w=defaultweight):
 def di(d):
     return ["↑", "→", "↓", "←"][d]
 
-def run2048(w=defaultweight, p=True):
+def run2048(w=defaultweight, p=True, API=T.API):
     a = API("http://localhost:8080")
     
     try:
@@ -279,6 +217,9 @@ def run2048(w=defaultweight, p=True):
         print("over:" + str(a.score))
         PM(a.board)
     return a.score
+
+def lr():
+    run2048(API=T.Local)
 
 def proc(Q):
     while True:

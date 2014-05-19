@@ -2,6 +2,7 @@
 
 import random
 import supercalifragilisticexpialidocious as S
+import taas as T
 from multiprocessing import Process, Queue, JoinableQueue
 import collections
 import sys
@@ -11,7 +12,7 @@ def worker(Q, Qout):
         action = Q.get()
         scores = []
 
-        score = S.run2048(w=S.norm(action), p=False)
+        score = S.run2048(w=S.norm(action), p=False, API=T.Local)
         scores.append(score)
         
         avg = score
