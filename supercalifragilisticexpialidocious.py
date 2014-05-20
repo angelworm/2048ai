@@ -164,7 +164,7 @@ def evs(b, w=defaultweight, evs=evs):
     ret += " = " + str(int(evf(b,w=w)))
     return ret
 
-def guessN(b1, n=3, w=defaultweight, player=True, a=float('-inf'), b=float('inf')):
+def guessN(b1, n=4, w=defaultweight, player=True, a=float('-inf'), b=float('inf')):
     if n == 0:
         return evf(b1, w)
     
@@ -181,7 +181,7 @@ def guessN(b1, n=3, w=defaultweight, player=True, a=float('-inf'), b=float('inf'
                 return a
         return b
 
-def guess(b, n=6, w=defaultweight):
+def guess(b, n=5, w=defaultweight):
     b2 = [(guessN(T.mov(b, d), n=n, w=w, player=False), d) for d in range(4) if cmv(b, d)]
     if b2 == []:
         return -1,0
