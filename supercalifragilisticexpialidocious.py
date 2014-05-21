@@ -134,25 +134,36 @@ def evs(b, w=defaultweight, evs=evs):
     ret += " = " + str(int(evf(b,w=w)))
     return ret
 
-def guessN(b1, n=4, w=defaultweight, player=True, a=float('-inf'), b=float('inf')):
+def guessN(b1, n=4, w=defaultweight, player=True, a=float('-inf'), b=float('inf'), cache=dict()):
+    h = hash(str(b1))
+    if h in cache:
+        print("c", end="")
+        return cache[h]
     if n == 0:
-        return evf(b1, w)
+        cache[h] = evf(b1, w)
+        return cache[h]
     
     if player:
         for b2 in [T.mov(b1, d) for d in range(4) if cmv(b1, d)]:
             a = max(a, guessN(b2, n=n-1, w=w, player=not player, a=a, b=b))
+            cache[h] = a
             if a >= b:
                 return b
         return a
     else:
         for b2 in inp(b1, [2,4]):
             b = min(b, guessN(b2, n=n-1, w=w, player=not player, a=a, b=b))
+            cache[h] = b
             if a >= b:
                 return a
         return b
 
 def guess(b, n=5, w=defaultweight):
-    b2 = [(guessN(T.mov(b, d), n=n, w=w, player=False), d) for d in range(4) if cmv(b, d)]
+    cache = dict()
+    b2 = []
+    for d in range(4):
+        if cmv(b, d):
+            b2.append((guessN(T.mov(b, d), n=n, w=w, player=False, cache=cache), d))
     if b2 == []:
         return -1,0
     else:

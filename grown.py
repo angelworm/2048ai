@@ -25,7 +25,7 @@ def main():
     threadMax = 8
     genMax = 100
 
-    act = [500, 500, 300, 100, 500, 100]
+    act = [500, 500, 300, 100, 500, 100, 100]
     score = 0
     Q = JoinableQueue()
     rQ = Queue()

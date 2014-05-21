@@ -1,6 +1,6 @@
 import pyximport
 pyximport.install()
 import supercalifragilisticexpialidocious
-supercalifragilisticexpialidocious.main()
+supercalifragilisticexpialidocious.lr()
 
-#python -m cProfile csuper.py
+#python -m cProfile -s time csuper.py
