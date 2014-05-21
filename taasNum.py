@@ -108,8 +108,12 @@ class Local:
         return self.board
         
     def move(self, d):
-        b2 = inp(mov(self.board, int(d)))
+        
+        b2 = mov(self.board, int(d))
         self.moved = not np.all(b2 == self.board)
+        if not self.moved:
+            return b2
+        b2 = inp(b2)
         self.board = b2
         self.score_update()
         self.over = over(self.board)
@@ -134,3 +138,4 @@ class API:
         self.board = np.array(st['grid'], dtype=np.int)
         self.over = st['over']
         self.moved = st['moved']
+        self.score = st['score']
