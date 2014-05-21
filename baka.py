@@ -2,10 +2,13 @@
 
 import random
 import copy
-import urllib2
+import urllib as urllib2
+import urllib.request as urllib2
 import json
-import Queue
+import queue
 from threading import Thread
+import bisect
+import taasNum as T
 
 def rotC(b):
     """ 時計回りに回転 """
@@ -72,9 +75,9 @@ def finalize(b):
 def PM(x):
     for i in x:
         for j in i:
-            print j,
-        print
-    print
+            print(j, end="\t")
+        print()
+    print()
 
 
 class API:
@@ -105,14 +108,14 @@ def evf(b):
 def isVaildAction(action):
     return all(d in action for d in range(4))
 
-def run2048(action):
+def run2048(action, API=T.API):
     if not isVaildAction(action):
         return -1
     
     a = API("http://localhost:8080")
     while not a.over:
         for d in action:
-            a.move(str(d))
+            a.move(int(d))
             if a.over:
                 return a.score
     return a.score
@@ -126,17 +129,34 @@ def worker(Q, Qout):
         Qout.put((action, avg))
         Q.task_done()
 
+def rwc(l):
+    total = 0
+    ps = []
+    it = []
+
+    for item, p in l:
+        total += p
+        ps.append(total)
+        it.append(item)
+
+    return it[bisect.bisect(ps, random.random() * total)]
+
+def cross(a, b):
+    x, y = sorted(random.sample(range(len(a)), 2))
+    return (a[:x] + b[x:y] + a[y:], b[:x] + a[x:y] + b[y:])
+
 def main():
     genMax = 100
-    chlidMax = 50
+    chlidMax = 100
     sampleMax = 10
-    geneMax = 200
+    geneMax = 400
     threadMax = 50
+    actions = [(0, 0.30), (1, 0.69), (2, 0.01)]
 
-    act = [0, 2, 2, 3, 0, 2, 2, 1, 3, 3, 2, 3, 0, 1, 2, 1, 3, 2, 3, 3, 0, 2, 0, 1, 3, 1, 2, 3, 3, 0, 3, 3, 1, 3, 3, 3, 1, 2, 2, 3, 3, 1, 2, 3, 1, 0, 3, 3, 2, 2, 3, 0, 3, 2, 3, 1, 3, 0, 1, 0, 1, 2, 1, 2, 3, 3, 3, 2, 1, 2, 0, 3, 1, 1, 2, 3, 0, 1, 3, 3, 1, 0, 3, 2, 3, 0, 3, 2, 3, 0, 2, 0, 2, 3, 2, 2, 2, 2, 3, 3, 3, 1, 0, 2, 1, 3, 2, 0, 2, 0, 1, 3, 3, 0, 1, 3, 2, 3, 0, 1, 0, 1, 3, 2, 0, 0, 1, 2, 2, 0, 1, 1, 2, 2, 1, 3, 2, 1, 0, 2, 0, 0, 0, 1, 1, 2, 2, 3, 2, 0, 3, 2, 1, 1, 0, 1, 2, 1, 0, 0, 2, 2, 1, 0, 0, 3, 0, 3, 3, 3, 0, 3, 2, 0, 3, 0, 0, 1, 1, 2, 3, 2, 2, 3, 3, 0, 1, 1, 2, 1, 2, 3, 2, 1, 2, 0, 3, 0, 2, 1]
-    score = 0
-    Q = Queue.Queue()
-    rQ = Queue.Queue()
+    #act = [0, 2, 2, 3, 0, 2, 2, 1, 3, 3, 2, 3, 0, 1, 2, 1, 3, 2, 3, 3, 0, 2, 0, 1, 3, 1, 2, 3, 3, 0, 3, 3, 1, 3, 3, 3, 1, 2, 2, 3, 3, 1, 2, 3, 1, 0, 3, 3, 2, 2, 3, 0, 3, 2, 3, 1, 3, 0, 1, 0, 1, 2, 1, 2, 3, 3, 3, 2, 1, 2, 0, 3, 1, 1, 2, 3, 0, 1, 3, 3, 1, 0, 3, 2, 3, 0, 3, 2, 3, 0, 2, 0, 2, 3, 2, 2, 2, 2, 3, 3, 3, 1, 0, 2, 1, 3, 2, 0, 2, 0, 1, 3, 3, 0, 1, 3, 2, 3, 0, 1, 0, 1, 3, 2, 0, 0, 1, 2, 2, 0, 1, 1, 2, 2, 1, 3, 2, 1, 0, 2, 0, 0, 0, 1, 1, 2, 2, 3, 2, 0, 3, 2, 1, 1, 0, 1, 2, 1, 0, 0, 2, 2, 1, 0, 0, 3, 0, 3, 3, 3, 0, 3, 2, 0, 3, 0, 0, 1, 1, 2, 3, 2, 2, 3, 3, 0, 1, 1, 2, 1, 2, 3, 2, 1, 2, 0, 3, 0, 2, 1]
+    acts = [([random.randrange(4) for i in range(geneMax)], 1.0/chlidMax) for i in range(chlidMax)]
+    Q = queue.Queue()
+    rQ = queue.Queue()
 
     for i in range(threadMax):
         w = Thread(target=worker, args=(Q,rQ,))
@@ -147,20 +167,34 @@ def main():
         print(str(gen) + " generation start *************")
         
         for i in range(chlidMax):
-            ac = act[:]
-            for i in range(sampleMax):
-                index = random.randrange(1, geneMax)
-                ac[index] = random.randrange(4)
-            Q.put(ac)
+            action = rwc(actions)
+            if action == 0:
+                Q.put(rwc(acts))
+            elif action == 1:
+                a, b = cross(rwc(acts), rwc(acts))
+                Q.put(a)
+                Q.put(b)
+            elif action == b:
+                a = rwc(acts)[:]
+                for i in range(len(a)):
+                    if random.randrange(1) == 0:
+                        a[i] = random.randrange(4)
+                Q.put(a)
             
         Q.join()
     
+        acts = []
+        scoresum = 0
         while not rQ.empty():
             a, s = rQ.get_nowait()
-            if s > score:
-                act, score = a, s
+            scoresum += s
+            acts.append((a,s))
 
-        print("Max Score: " + str(score) + " act:" + str(act))
+        for i in range(len(acts)):
+            acts[i] = (acts[i][0], acts[i][1] / float(scoresum))
+
+        acts = sorted(acts, key=lambda x:x[1])
+        print("Max Score: " + str(int(acts[-1][1] * scoresum)) + " act:" + str(acts[-1][0]))
         
 if __name__ == '__main__':
     main()
