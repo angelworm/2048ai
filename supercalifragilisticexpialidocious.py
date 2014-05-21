@@ -47,14 +47,14 @@ def norm(l):
 
 def ev_score(b):
     b = b[b.nonzero()]
-    return int(sum(b * (np.log2(b) - 1)))
+    return sum(b * (np.log2(b) - 1))
 
 def ev_sclg(b):
     b = b[b.nonzero()]
-    return int(sum((np.log2(b) - 1) ** 2))
+    return sum((np.log2(b) - 1) ** 2)
 
 def ev_max(b):
-    return int(np.log2(np.max(b)))
+    return np.log2(np.max(b))
 
 def ev_step(b):
     def cost(l, r):
@@ -62,7 +62,7 @@ def ev_step(b):
         if l == 0:
             l = 1
         if l     == r:
-            return 4
+            return 3
         elif l * 2 == r:
             return 2
         elif l     <= r:
@@ -84,8 +84,11 @@ def ev_step(b):
             else:
                 break
             bx = x
-        ret = max(ret, c)
-    return ret
+        biz = bi[0,0]
+        if biz == 0:
+            biz = 1
+        ret = max(ret, c * np.log2(biz))
+    return ret 
 
 def ev_eq(b):
     d1 = b[1:].nonzero()
@@ -117,7 +120,7 @@ def ev_di(b):
     return 0 - np.sum(d1) - np.sum(d2)
 
 defaultweight = norm([50, 30, 10, 10, 10, 10])
-evs = [ev_sclg, ev_step, ev_eq, ev_cmmax, ev_hole, ev_di]
+evs = [ev_score, ev_step, ev_eq, ev_cmmax, ev_hole, ev_di]
 
 def evf(b, w=defaultweight, evs=evs):
     """ 評価関数が入る """
@@ -131,38 +134,48 @@ def evs(b, w=defaultweight, evs=evs):
     for ev, wv in zip(evs[1:], w[1:]):
         ret += " + " + str(ev(b)) + "*" + pp(wv)
 
-    ret += " = " + str(int(evf(b,w=w)))
+    ret += " = " + str(int(evf(b) * 100) / 100.00)
     return ret
 
-def guessN(b1, n=4, w=defaultweight, player=True, a=float('-inf'), b=float('inf'), cache=dict()):
-    h = hash(str(b1))
-    if h in cache:
-        return cache[h]
+nullcache = lambda:{"a":{}, "b":{}, "mv":{}, "ev":{}}
+
+def guessN(b1, n=4, w=defaultweight, player=True, a=float('-inf'), b=float('inf'), c=nullcache()):
+    h = hash(str(b1) + str(n))
+    
     if n == 0:
-        cache[h] = evf(b1, w)
-        return cache[h]
+        if h not in c["ev"]:
+            c["ev"][h] = evf(b1, w)
+        return c["ev"][h]
     
     if player:
-        for b2 in [T.mov(b1, d) for d in range(4) if cmv(b1, d)]:
-            a = max(a, guessN(b2, n=n-1, w=w, player=not player, a=a, b=b))
-            cache[h] = a
-            if a >= b:
-                return b
-        return a
-    else:
-        for b2 in inp(b1, [2,4]):
-            b = min(b, guessN(b2, n=n-1, w=w, player=not player, a=a, b=b))
-            cache[h] = b
-            if a >= b:
-                return a
-        return b
+        if h not in c["a"]:
+            for b2 in [T.mov(b1, d) for d in range(4) if cmv(b1, d)]:
+                a = max(a, guessN(b2, n=n-1, w=w, player=not player, a=a, b=b, c=c))
+                if a >= b:
+                    c["a"][h] = b
+                    break
+            else:
+                c["a"][h] = a
+        return c["a"][h]
 
-def guess(b, n=5, w=defaultweight):
-    cache = dict()
+    else:
+        if h not in c["b"]:
+            for b2 in inp(b1, [2,4]):
+                b = min(b, guessN(b2, n=n-1, w=w, player=not player, a=a, b=b,c=c))
+                if a >= b:
+                    c["b"][h] = a
+                    break
+            else:
+                c["b"][h] = b
+        return c["b"][h]
+
+def guess(b, n=4, w=defaultweight):
+    cache = nullcache()
     b2 = []
     for d in range(4):
         if cmv(b, d):
-            b2.append((guessN(T.mov(b, d), n=n, w=w, player=False, cache=cache), d))
+            b2.append((guessN(T.mov(b, d), n=n, w=w, player=False, c=cache), d))
+    
     if b2 == []:
         return -1,0
     else:
