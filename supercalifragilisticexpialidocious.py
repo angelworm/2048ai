@@ -137,7 +137,6 @@ def evs(b, w=defaultweight, evs=evs):
 def guessN(b1, n=4, w=defaultweight, player=True, a=float('-inf'), b=float('inf'), cache=dict()):
     h = hash(str(b1))
     if h in cache:
-        print("c", end="")
         return cache[h]
     if n == 0:
         cache[h] = evf(b1, w)

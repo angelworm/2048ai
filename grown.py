@@ -2,7 +2,7 @@
 
 import random
 import supercalifragilisticexpialidocious as S
-import taas as T
+import taasNum as T
 from multiprocessing import Process, Queue, JoinableQueue
 import collections
 import sys
