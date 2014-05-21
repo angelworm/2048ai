@@ -6,36 +6,34 @@ import urllib
 import urllib.request as urllib2
 import json
 import math
-import taas as T
-    
+import taasNum as T
+import numpy as np
+import hashlib
+
 def cmv(b,d):
-    return b != T.mov(b,d)
+    return not np.all(b == T.mov(b,d))
 
 def inp(b, vs):
     "vsの要素を埋め込んだbを量産"
     ret = []
-    for y in range(4):
-        for x in range(4):
-            if b[y][x] == 0:
-                for v in vs:
-                    b2 = [l[:] for l in b]
-                    b2[y][x] = v
-                    ret.append(b2)
+    for y, x in T.hole_index(b):
+        for v in vs:
+            b2 = np.copy(b)
+            b2[y, x] = v
+            ret.append(b2)
     return ret
 
 def nxt(b):
     "inpしてmovしたbを量産"
-    ret = set()
+    def elem(d, li):
+        any(np.array_equal(d, x) for x in li)
+
+    ret = np.empty()
     for b2 in inp(b, [2,4]):
         for d in range(4):
-            ret.add(finalize(T.mov(b2, d)))
+            if not elem(d, ret):
+                ret.append(T.mov(b2, d))
     return ret
-
-def finalize(b):
-    return tuple(tuple(i) for i in b)
-def definelize(b):
-    return list(list(i) for i in b)
-        
 
 def PM(x):
     for i in x:
@@ -45,79 +43,60 @@ def PM(x):
     print
 
 def norm(l):
-    l = list(l)
-    return list(i / sum(l) for i in l)
+    return list(i / sum(l) for i in list(l))
 
 def ev_score(b):
-    return sum(sum(x * int(math.log(x, 2) - 1) for x in l if x != 0) for l in b)
+    b = b[b.nonzero()]
+    return int(sum(b * (np.log2(b) - 1)))
 
 def ev_sclg(b):
-    return sum(sum(int(math.log(x, 2) - 1) * x for x in l if x != 0) for l in b)
+    b = b[b.nonzero()]
+    return int(sum((np.log2(b) - 1) ** 2))
 
 def ev_max(b):
-    def sl(x):
-        if x <= 2:
-            return 0
-        else:
-            return int(math.log(x, 2) - 1) 
-    return max(max(sl(x) for x in l) for l in b)
+    return int(np.log2(np.max(b)))
 
 def ev_step(b):
     def cost(l, r):
         """ l < r """
         if l == 0:
             l = 1
-        if l * 2 == r:
+        if l     == r:
             return 4
-        if l * 4 == r:
+        elif l * 2 == r:
             return 2
-        if l     <= r:
+        elif l     <= r:
             return 1
         return 0
-
-    b2 = [b, T.rotC(b)]
+        
+    bt = T.rotC(b)
+    b2 = [[x, np.fliplr(x), np.flipud(x), np.fliplr(np.flipud(x))] for x in [b, bt]]
     
     ret = 0
-    for b in b2:
-        lc, rc, lrc, rrc = 0, 0, 0, 0 
-        lv, rv = 0, 0
-        for line in b:
-            for l in line:
-                lc += cost(l,lv)
-                lrc += cost(lv, l)
-                lv = l
-            for r in reversed(line):                
-                rc += cost(r, rv)
-                rrc += cost(rv, r)
-                rv = r
-            lc, rc = rc, lc
-            lrc, rrc = rrc, lrc
-            lv, rv = rv, lv
-        ret = max(ret, rc, lc, rrc, lrc)
+    for bi in sum(b2, []):
+        bx = -1
+        c = 0
+        for x in bi.flat:
+            if bx == -1:
+                pass
+            elif bx >= x:
+                c += cost(x,bx)
+            else:
+                break
+            bx = x
+        ret = max(ret, c)
     return ret
 
 def ev_eq(b):
-    b2 = [b, T.rotC(b)]
-    
-    ret = 0
-    for b in b2:
-        for l in b:
-            lv = 0
-            for i in l:
-                if lv == 0:
-                    lv = i
-                elif i == 0:
-                    continue
-                elif lv == i:
-                    ret += 1
-                    lv = i
-                else:
-                    lv = i
-    return ret
+    d1 = b[1:].nonzero()
+    d2 = b[...,1:].nonzero()
+    l1 = len(np.nonzero(b[1:][d1] == b[:-1][d1])[0])
+    l2 = len(np.nonzero(b[...,1:][d2] == b[...,:-1][d2])[0])
+    return l1 + l2
               
 def ev_cm(b):
-    mv = max(max(l) for l in b)
-    if mv in [b[0][0], b[0][3], b[3][0], b[3][3]]:
+    mv = np.max(b)
+    if mv in [b[0, 0], b[0, 3], b[3, 0], b[3, 3]]:
         return 10
     else:
         return 0
@@ -126,25 +105,16 @@ def ev_cmmax(b):
     return ev_max(b) * ev_cm(b)
 
 def ev_hole(b):
-    return sum(sum(1 for x in l if x == 0) for l in b)
+    return len((b == 0).nonzero()[0])
 
 def ev_di(b):
-    b2 = [b, T.rotC(b)]
-    
-    ret = 0
-    for b in b2:
-        for l in b:
-            ib = 0
-            for i in l:
-                if ib == 0:
-                    ib = i
-                elif i == 0:
-                    pass
-                else:
-                    a = math.log(ib, 2)
-                    b = math.log(i , 2)
-                    ret += min(a, b) - max(a,b) + 1
-    return ret
+    b = b.copy()
+    b[np.nonzero(b == 0)] = 1
+    b = np.log2(b)
+
+    d1 = np.abs(b[1:] - b[:-1])
+    d2 = np.abs(b[..., 1:] - b[..., :-1]) 
+    return 0 - np.sum(d1) - np.sum(d2)
 
 defaultweight = norm([50, 50, 30, 10, 50, 10, 10])
 evs = [ev_sclg, ev_max, ev_step, ev_eq, ev_cmmax, ev_hole, ev_di]
