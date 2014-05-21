@@ -25,7 +25,7 @@ def main():
     threadMax = 8
     genMax = 100
 
-    act = [500, 300, 300, 100, 100, 100]
+    act = [random.randrange(100) for _ in range(6)]
     score = 0
     Q = JoinableQueue()
     rQ = Queue()
