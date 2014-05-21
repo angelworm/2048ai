@@ -116,8 +116,8 @@ def ev_di(b):
     d2 = np.abs(b[..., 1:] - b[..., :-1]) 
     return 0 - np.sum(d1) - np.sum(d2)
 
-defaultweight = norm([50, 50, 30, 10, 50, 10, 10])
-evs = [ev_sclg, ev_max, ev_step, ev_eq, ev_cmmax, ev_hole, ev_di]
+defaultweight = norm([50, 30, 10, 10, 10, 10])
+evs = [ev_sclg, ev_step, ev_eq, ev_cmmax, ev_hole, ev_di]
 
 def evf(b, w=defaultweight, evs=evs):
     """ 評価関数が入る """

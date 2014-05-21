@@ -25,7 +25,7 @@ def main():
     threadMax = 8
     genMax = 100
 
-    act = [500, 500, 300, 100, 500, 100, 100]
+    act = [500, 300, 300, 100, 100, 100]
     score = 0
     Q = JoinableQueue()
     rQ = Queue()
@@ -49,7 +49,7 @@ def main():
 
         # coll
         for i in range(5):
-            task.append([a+b for a, b in zip(ac, [random.randint(-100, 100) for i in range(6)]) ])
+            task.append([a+b for a, b in zip(ac, [random.randint(-100, 100) for i in range(len(act))]) ])
         for t in task * 10:
             Q.put(t)
         
