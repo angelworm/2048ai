@@ -55,7 +55,7 @@ def ev_sclg(b):
     return sum((np.log2(b) - 1) ** 2)
 
 def ev_max(b):
-    return np.log2(np.max(b))
+    return np.max(b)
 
 def ev_step(b):
     def cost(l, r):
@@ -121,7 +121,6 @@ def ev_di(b):
     return 0 - np.sum(d1) - np.sum(d2)
 
 ev_binop = {
-    'index': op.getitem,
     '*':     op.mul,
     '**':    op.pow,
     '+':     op.add,
@@ -131,37 +130,45 @@ ev_binop = {
     'min':   min
 }
 
+evs = [ev_score, ev_sclg, ev_step, ev_eq, ev_cm, ev_max, ev_hole, ev_di]
+ev_evs = dict((f.__name__, f) for f in evs)
+
 def ev_gen():
-    values = ['fun', 'log', 'b', 'b', 'b']
-    values += ev_binop.keys()
+    values = ['log', 'abs']
+    values += list(ev_evs.keys()) * 2
+    values += list(ev_binop.keys()) * 4
     values += [str(x) for x in range(16)]
     v = random.choice(values)
-    if v in ['fun']:
-        evs = [ev_score, ev_step, ev_eq, ev_cmmax, ev_hole, ev_di, sum, abs]
-        return [v, random.choice(evs), ev_gen()]
-    elif v in ['log']:
+    if v in ev_evs.keys():
+        return [v]
+    elif v in ['log', 'abs']:
         return [v, ev_gen()]
     elif v in ev_binop.keys():
         return [v, ev_gen(), ev_gen()]
-    elif v in ['b'] + [str(x) for x in range(16)]:
+    elif v in [str(x) for x in range(16)]:
         return [v]
 
-def ev_eval(ev, b):
-    if ev == 'b':
-        return b.copy()
-    elif ev in [str(x) for x in range(16)]:
-        return np.array(int(ev))
-    elif ev[0] in ['fun']:
-        return np.array(ev[1](ev_eval(ev[2], b)))
+def ev_eval_sub(ev, e_var):
+    if not isinstance(ev, list) and ev in [str(x) for x in range(16)]:
+        return float(ev)
+    elif not isinstance(ev, list) and ev in ev_evs.keys():
+        return e_var[ev]
+    elif ev[0] in ['abs']:
+        return abs(ev_eval(ev[1], e_var))
     elif ev[0] in ['log']:
-        ev2 = ev_eval(ev[1], b)
-        ev2[(ev2 == 0).nonzero()] = 1
-        return np.log2(ev2)
+        ev2 = ev_eval_sub(ev[1], e_var)
+        if ev2 <= 0:
+            ev2 = 1
+        return math.log(ev2, 2)
     elif ev[0] in ev_binop.keys():
-        return ev_binop[ev[0]](ev_eval(ev[1], b), ev_eval(ev[2], b))
+        return ev_binop[ev[0]](ev_eval_sub(ev[1], e_var), ev_eval_sub(ev[2], e_var))
     else:
-        return ev_eval(ev[0], b)
+        return ev_eval_sub(ev[0], e_var)
  
+def ev_eval(ev, b):
+    e_var = dict([(k, f(b)) for k, f in ev_evs.items()])
+    return ev_eval_sub(ev, e_var)
+
 def ev_choice(ev):
     if random.randrange(2) == 1:
         return ev
@@ -192,7 +199,7 @@ def guessN(b1, evf, n=4, player=True, a=float('-inf'), b=float('inf'), c=nullcac
     
     if n == 0:
         if h not in c["ev"]:
-            c["ev"][h] = ev_eval(evf, b1).sum()
+            c["ev"][h] = ev_eval(evf, b1)
         return c["ev"][h]
     
     if player:
