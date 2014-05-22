@@ -41,10 +41,13 @@ def rwc(l):
     return it[bisect.bisect(ps, random.random() * total)]
 
 def main():
+    def gh(g):
+        return hash(str(g))
+    
     threadMax = 8
     genMax = 100
-    geneMax = 150
-    actions = [(0, 0.30), (1, 0.65), (2, 0.05)]
+    geneMax = 350
+    actions = [(0, 0.20), (1, 0.75), (2, 0.05)]
 
     gene = [(S.ev_gen(), 1/geneMax) for _ in range(geneMax)]
     score = 0
@@ -60,17 +63,28 @@ def main():
         sys.stdout.flush()
             
         task = []
-
-        for i in range(geneMax):
+        count = 0
+        while count < geneMax:
             action = rwc(actions)
             if action == 0:
-                Q.put(rwc(gene))
+                g = rwc(gene)
+                if gh(g) not in task:
+                    task.append(gh(g))
+                    count += 1
+                    Q.put(g)
             elif action == 1:
                 a = S.ev_cross(rwc(gene), rwc(gene))
-                Q.put(a)
+                if gh(a) not in task:
+                    task.append(gh(a))
+                    count += 1
+                    Q.put(a)
             elif action == 2:
-                Q.put(S.ev_gen())
-        
+                a = S.ev_gen()
+                if gh(a) not in task:
+                    task.append(gh(a))
+                    count += 1
+                    Q.put(a)
+                
         Q.join()
         
         gene = []
