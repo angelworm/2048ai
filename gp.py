@@ -10,6 +10,9 @@ import taasNum as T
 import numpy as np
 import hashlib
 import operator as op
+import sys
+
+sys.setrecursionlimit(100000)
 
 def cmv(b,d):
     return not np.all(b == T.mov(b,d))
@@ -46,79 +49,11 @@ def PM(x):
 def norm(l):
     return list(i / sum(l) for i in list(l))
 
-def ev_score(b):
-    b = b[b.nonzero()]
-    return sum(b * (np.log2(b) - 1))
+def safe_log(x):
+    if x <= 0:
+        ev2 = x
+    return math.log(x, 2)
 
-def ev_sclg(b):
-    b = b[b.nonzero()]
-    return sum((np.log2(b) - 1) ** 2)
-
-def ev_max(b):
-    return np.max(b)
-
-def ev_step(b):
-    def cost(l, r):
-        """ l < r """
-        if l == 0:
-            l = 1
-        if l     == r:
-            return 3
-        elif l * 2 == r:
-            return 2
-        elif l     <= r:
-            return 1
-        return 0
-        
-    bt = T.rotC(b)
-    b2 = [[x, np.fliplr(x), np.flipud(x), np.fliplr(np.flipud(x))] for x in [b, bt]]
-    
-    ret = 0
-    for bi in sum(b2, []):
-        bx = -1
-        c = 0
-        for x in bi.flat:
-            if bx == -1:
-                pass
-            elif bx >= x:
-                c += cost(x,bx)
-            else:
-                break
-            bx = x
-        biz = bi[0,0]
-        if biz == 0:
-            biz = 1
-        ret = max(ret, c * np.log2(biz))
-    return ret 
-
-def ev_eq(b):
-    d1 = b[1:].nonzero()
-    d2 = b[...,1:].nonzero()
-    l1 = len(np.nonzero(b[1:][d1] == b[:-1][d1])[0])
-    l2 = len(np.nonzero(b[...,1:][d2] == b[...,:-1][d2])[0])
-    return l1 + l2
-              
-def ev_cm(b):
-    mv = np.max(b)
-    if mv in [b[0, 0], b[0, 3], b[3, 0], b[3, 3]]:
-        return 10
-    else:
-        return 0
-
-def ev_cmmax(b):
-    return ev_max(b) * ev_cm(b)
-
-def ev_hole(b):
-    return len((b == 0).nonzero()[0])
-
-def ev_di(b):
-    b = b.copy()
-    b[np.nonzero(b == 0)] = 1
-    b = np.log2(b)
-
-    d1 = np.abs(b[1:] - b[:-1])
-    d2 = np.abs(b[..., 1:] - b[..., :-1]) 
-    return 0 - np.sum(d1) - np.sum(d2)
 
 ev_binop = {
     '*':     op.mul,
@@ -130,46 +65,43 @@ ev_binop = {
     'min':   min
 }
 
-evs = [ev_score, ev_sclg, ev_step, ev_eq, ev_cm, ev_max, ev_hole, ev_di]
-ev_evs = dict((f.__name__, f) for f in evs)
+board_index_variable = ['b' + str(x) for x in range(16)]
+number_variable = [str(x) for x in range(20)]
 
 def ev_gen():
     values = ['log', 'abs']
-    values += list(ev_evs.keys()) * 2
+    values += board_index_variable
     values += list(ev_binop.keys()) * 4
-    values += [str(x) for x in range(16)]
+    values += number_variable
     v = random.choice(values)
-    if v in ev_evs.keys():
+    if v in board_index_variable:
+        return [v]
+    elif v in number_variable:
         return [v]
     elif v in ['log', 'abs']:
         return [v, ev_gen()]
     elif v in ev_binop.keys():
         return [v, ev_gen(), ev_gen()]
-    elif v in [str(x) for x in range(16)]:
-        return [v]
 
 def ev_eval_sub(ev, e_var):
-    if not isinstance(ev, list) and ev in [str(x) for x in range(16)]:
+    if not isinstance(ev, list) and ev in number_variable:
         return float(ev)
-    elif not isinstance(ev, list) and ev in ev_evs.keys():
-        return e_var[ev]
+    elif not isinstance(ev, list) and ev in board_index_variable:
+        return e_var[int(ev[1:])]
     elif ev[0] in ['abs']:
-        return abs(ev_eval(ev[1], e_var))
+        return abs(ev_eval_sub(ev[1], e_var))
     elif ev[0] in ['log']:
-        ev2 = ev_eval_sub(ev[1], e_var)
-        if ev2 <= 0:
-            ev2 = 1
-        return math.log(ev2, 2)
+        return safe_log(ev_eval_sub(ev[1], e_var))
     elif ev[0] in ev_binop.keys():
         return ev_binop[ev[0]](ev_eval_sub(ev[1], e_var), ev_eval_sub(ev[2], e_var))
     else:
         return ev_eval_sub(ev[0], e_var)
  
 def ev_eval(ev, b):
-    e_var = dict([(k, f(b)) for k, f in ev_evs.items()])
+    e_var = list(b.flat)
     return ev_eval_sub(ev, e_var)
 
-def ev_choice(ev):
+def ev_choice(ev, p=0.3):
     if random.randrange(2) == 1:
         return ev
     elif not isinstance(ev, list):
@@ -181,7 +113,7 @@ def ev_choice(ev):
 
 def ev_cross(ev1, ev2, p=0.3):
     if p > random.random():
-        return ev_choice(ev2)
+        return ev_choice(ev2, p)
     elif not isinstance(ev1, list):
         return [ev1]
     elif len(ev1) == 1:
@@ -252,7 +184,7 @@ def run2048(evf=ev_gen(), n=2, p=True, API=T.API):
             if not a.moved:
                 print("failed to move: " + di(gd))
                 PM(a.board)
-    except BaseException as e:
+    except Exception as e:
         if p:
             print(e)
             print("everr:" + str(evf))
