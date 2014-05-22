@@ -154,7 +154,7 @@ def ev_eval_sub(ev, e_var):
     elif not isinstance(ev, list) and ev in ev_evs.keys():
         return e_var[ev]
     elif ev[0] in ['abs']:
-        return abs(ev_eval(ev[1], e_var))
+        return abs(ev_eval_sub(ev[1], e_var))
     elif ev[0] in ['log']:
         ev2 = ev_eval_sub(ev[1], e_var)
         if ev2 <= 0:
