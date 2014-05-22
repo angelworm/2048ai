@@ -17,7 +17,11 @@ def worker(Q, Qout):
             score = S.run2048(evf=ev, p=False, API=T.Local, n=0)
             scores.append(score)
         
-        avg = sum(scores) / 10
+        if 0 in scores:
+            avg = 0
+        else:
+            avg = sum(scores) / 10
+
         print("score: " + str(avg) + " \tact:" + str(ev))   
         if avg != 0:
             sys.stdout.flush()         

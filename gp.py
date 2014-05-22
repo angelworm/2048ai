@@ -252,7 +252,7 @@ def run2048(evf=ev_gen(), n=2, p=True, API=T.API):
             if not a.moved:
                 print("failed to move: " + di(gd))
                 PM(a.board)
-    except Exception as e:
+    except BaseException as e:
         if p:
             print(e)
             print("everr:" + str(evf))
