@@ -81,7 +81,7 @@ def main():
                     Q.put(a)
             elif action == 2:
                 g = rwc(gene)
-                a = S.ev_cross(g, a)
+                a = S.ev_cross(g, S.ev_gen())
                 if gh(a) not in task:
                     task.append(gh(a))
                     count += 1
