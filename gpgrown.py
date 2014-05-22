@@ -22,7 +22,7 @@ def worker(Q, Qout):
         else:
             avg = sum(scores) / 10
 
-        print("score: " + str(avg) + " \tact:" + str(ev))   
+        #print("score: " + str(avg) + " \tact:" + str(ev))   
         if avg != 0:
             sys.stdout.flush()         
             Qout.put((ev, avg))
@@ -43,7 +43,7 @@ def rwc(l):
 def main():
     threadMax = 8
     genMax = 100
-    geneMax = 500
+    geneMax = 150
     actions = [(0, 0.30), (1, 0.65), (2, 0.05)]
 
     gene = [(S.ev_gen(), 1/geneMax) for _ in range(geneMax)]
