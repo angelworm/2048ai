@@ -63,27 +63,27 @@ def main():
         print(str(gen) + " generation start *************")
         sys.stdout.flush()
             
-        task = []
+        task = set()
         count = 0
         while count < geneMax:
             action = rwc(actions)
             if action == 0:
                 g = rwc(gene)
                 if gh(g) not in task:
-                    task.append(gh(g))
+                    task.add(gh(g))
                     count += 1
                     Q.put(g)
             elif action == 1:
                 a = S.ev_cross(rwc(gene), rwc(gene))
                 if gh(a) not in task:
-                    task.append(gh(a))
+                    task.add(gh(a))
                     count += 1
                     Q.put(a)
             elif action == 2:
                 g = rwc(gene)
                 a = S.ev_cross(g, S.ev_gen())
                 if gh(a) not in task:
-                    task.append(gh(a))
+                    task.add(gh(a))
                     count += 1
                     Q.put(a)
                 

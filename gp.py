@@ -179,7 +179,7 @@ def ev_choice(ev):
     else:
         return random.choice(list(ev_choice(x) for x in ev[1:]))
 
-def ev_cross(ev1, ev2, p=0.7):
+def ev_cross(ev1, ev2, p=0.3):
     if p > random.random():
         return ev_choice(ev2)
     elif not isinstance(ev1, list):
