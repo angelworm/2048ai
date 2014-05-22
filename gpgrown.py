@@ -46,7 +46,7 @@ def main():
         return hash(str(g))
     
     threadMax = 8
-    genMax = 100
+    genMax = 10000
     geneMax = 350
     actions = [(0, 0.20), (1, 0.75), (2, 0.05)]
     
