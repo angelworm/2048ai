@@ -7,6 +7,7 @@ from multiprocessing import Process, Queue, JoinableQueue
 import collections
 import sys
 import bisect
+import gpknown as K
 
 def worker(Q, Qout):
     while True:
@@ -49,10 +50,7 @@ def main():
     geneMax = 350
     actions = [(0, 0.20), (1, 0.75), (2, 0.05)]
     
-    known = [['min', ['min', ['+', ['ev_eq'], ['min', ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]], ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]]]], ['min', ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]], ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]]]], ['min', ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]], ['min', ['+', ['ev_eq'], ['min', ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]], ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]]]], ['min', ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]], ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]]]]]],
-             ['+', ['min', ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]], ['max', ['5'], ['max', ['min', ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]]]],
-             ['+', ['max', ['max', ['min', ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]], ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]]], ['ev_score']], ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]]], ['max', ['max', ['min', ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]], ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]]], ['ev_score']], ['+', ['ev_eq'], ['+', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['min', ['+', ['ev_score'], ['+', ['ev_score'], ['ev_eq']]], ['ev_di']]]]]]]
-    gene = [(S.ev_gen(), 1/geneMax) for _ in range(geneMax - len(known))] + [(x, 1/geneMax) for x in known]
+    gene = [(S.ev_gen(), 1/geneMax) for _ in range(geneMax - len(K.known))] + [(x, 1/geneMax) for x in K.known]
     score = 0
     Q = JoinableQueue()
     rQ = Queue()
