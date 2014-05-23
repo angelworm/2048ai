@@ -66,11 +66,11 @@ ev_binop = {
 }
 
 board_index_variable = ['b' + str(x) for x in range(16)]
-number_variable = [str(x) for x in range(20)]
+number_variable = [str(x) for x in range(10)]
 
 def ev_gen():
     values = ['log', 'abs']
-    values += board_index_variable
+    values += board_index_variable * 2
     values += list(ev_binop.keys()) * 4
     values += number_variable
     v = random.choice(values)
