@@ -15,7 +15,7 @@
 #include "taas.h"
 
 enum class ev_name{
-  e_0 = 0, e_1, e_2, e_3, e_4, e_5, e_6, e_7, e_8, e_9,
+e_0 = 0, e_1, e_2, e_3, e_4, e_5, e_6, e_7, e_8, e_9,
     e_b0, e_b1, e_b2, e_b3,
     e_b4, e_b5, e_b6, e_b7,
     e_b8, e_b9, e_b10,e_b11,
@@ -37,7 +37,15 @@ using Ev_p = std::shared_ptr<Ev>;
 
 Ev_p ev_gen() {
   Ev_p ret = std::make_shared<Ev>(Ev());
-  ret->name = static_cast<ev_name>(std::rand() % static_cast<int>(ev_name::size));
+  std::vector<ev_name> g;
+  for(auto i: {ev_name::e_0, ev_name::e_1, ev_name::e_2, ev_name::e_3, ev_name::e_4, ev_name::e_5, ev_name::e_6, ev_name::e_7, ev_name::e_8, ev_name::e_9, ev_name::e_b0, ev_name::e_b1, ev_name::e_b2, ev_name::e_b3, ev_name::e_b4, ev_name::e_b5, ev_name::e_b6, ev_name::e_b7, ev_name::e_b8, ev_name::e_b9, ev_name::e_b10, ev_name::e_b11, ev_name::e_b12, ev_name::e_b13, ev_name::e_b14,ev_name::e_b15} )
+    g.push_back(i);
+  for(auto i: {ev_name::e_log, ev_name::e_abs, ev_name::e_po2, ev_name::e_mul, ev_name::e_add, ev_name::e_sub, ev_name::e_div} )
+    g.push_back(i);
+  for(auto i: {ev_name::e_log, ev_name::e_abs, ev_name::e_po2, ev_name::e_mul, ev_name::e_add, ev_name::e_sub, ev_name::e_div} )
+    g.push_back(i);
+
+  ret->name = g[std::rand() % g.size()];
   switch(ret->name) {
   case ev_name::e_mul: case ev_name::e_add:
   case ev_name::e_sub: case ev_name::e_div:
@@ -118,6 +126,7 @@ Ev_p ev_inp(Ev_p a) {
 
 double ev_eval(Ev_p a, taas::board& b) {
   int x;
+  double v;
   
   switch(a->name) {
   case ev_name::e_0: case ev_name::e_1: case ev_name::e_2: case ev_name::e_3: case ev_name::e_4: case ev_name::e_5: case ev_name::e_6: case ev_name::e_7: case ev_name::e_8: case ev_name::e_9:
@@ -125,13 +134,21 @@ double ev_eval(Ev_p a, taas::board& b) {
   case ev_name::e_b0: case ev_name::e_b1: case ev_name::e_b2: case ev_name::e_b3: case ev_name::e_b4: case ev_name::e_b5: case ev_name::e_b6: case ev_name::e_b7: case ev_name::e_b8: case ev_name::e_b9: case ev_name::e_b10: case ev_name::e_b11: case ev_name::e_b12: case ev_name::e_b13: case ev_name::e_b14: case ev_name::e_b15:
     x = static_cast<int>(a->name) - static_cast<int>(ev_name::e_b0);
     return b[x / 4][x % 4];
-  case ev_name::e_log: return std::log(ev_eval(a->ch[0], b)) / std::log(2);
+  case ev_name::e_log: 
+    v = ev_eval(a->ch[0], b);
+    v = (v <= 1 ? 1 : v);
+    return std::log(v) / std::log(2);
   case ev_name::e_abs: return std::abs(ev_eval(a->ch[0], b));
   case ev_name::e_po2: return std::pow(ev_eval(a->ch[0], b), 2);
   case ev_name::e_mul: return ev_eval(a->ch[0], b) * ev_eval(a->ch[1], b);
   case ev_name::e_add: return ev_eval(a->ch[0], b) + ev_eval(a->ch[1], b);
   case ev_name::e_sub: return ev_eval(a->ch[0], b) - ev_eval(a->ch[1], b);
-  case ev_name::e_div: return ev_eval(a->ch[0], b) / ev_eval(a->ch[1], b);
+  case ev_name::e_div: 
+    v = ev_eval(a->ch[1], b);
+    if(v == 0)
+      return 0;
+    else
+      return ev_eval(a->ch[0], b) / v;
   default:
     assert(false);
     return 0;
@@ -204,7 +221,7 @@ std::uint64_t ev_hash(Ev_p a) {
 }
 
 int guess(taas::board& b, Ev_p ev, int n=4) {
-  double score = -1;
+  double score = -std::numeric_limits<double>::infinity();
   int dir = -1;
 # pragma omp parallel for
   for(int i = 0; i < 4; i++) {
@@ -240,7 +257,7 @@ int run2048(Ev_p evf, bool show=true) {
    return a.score;
 }
 
-const int CHILD_MAX = 200;
+const int CHILD_MAX = 400;
 
 void addgene(Ev_p a, std::vector<Ev_p>& list, std::set<std::uint64_t>& hash){
   std::uint64_t h = ev_hash(a);
@@ -306,12 +323,21 @@ void grown(std::vector<Ev_p> evs={}) {
     int score_sum = 0;
 #   pragma omp parallel for reduction(+:score_sum)
     for(int i = 0; i < CHILD_MAX; i++) {
-      std::cout << i << ":" << ev_show(gene2[i]) << std::endl;
-      int score = run2048(gene2[i], false);
+      //std::cout << i << ":" << ev_show(gene2[i]) << std::endl;
+      std::array<int, 10> scores;
+      int score = 0;
+      for(int j = 0; j < 10; j++) {
+        scores[j] = run2048(gene2[i], false);
+      }
+
+      std::sort(scores.begin(), scores.end(), [](int x,int y) {return x > y;});
+      for(int j = 0; j < 3; j++) score += scores[j];
+      score /= 3;
       score_sum += score;
+
 #     pragma omp critical
       {
-        std::cout << i << ":" << score << std::endl;
+        //        std::cout << i << ":" << score << std::endl;
         gene.push_back(std::make_pair(gene2[i], score));
       }
     }
