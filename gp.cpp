@@ -256,7 +256,7 @@ int run2048(Ev_p evf, bool show=true) {
    return a.score;
 }
 
-const int CHILD_MAX = 400;
+const int CHILD_MAX = 1000;
 
 void addgene(Ev_p a, std::vector<Ev_p>& list, std::set<std::uint64_t>& hash){
   std::uint64_t h = ev_hash(a);
