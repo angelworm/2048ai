@@ -367,7 +367,7 @@ void grown(std::vector<Ev_p> evs={}) {
               << "\tmed: " << gene[(it - gene.begin()) / 2].second  * score_sum
               << "\tavg: " << score_sum / (it - gene.begin()) 
               << "\tmin: " << minmax.second->second * score_sum
-              << "\tts: "  << size_sum / (it - gene.begin()) << std::endl;
+              << "\tts: "  << size_sum * 1.0 / (it - gene.begin()) << std::endl;
   }
 }
 
