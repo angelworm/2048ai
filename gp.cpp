@@ -349,10 +349,20 @@ void grown(std::vector<Ev_p> evs={}) {
     std::sort(gene.begin(), gene.end(), [](std::pair<Ev_p, double> x, std::pair<Ev_p, double> y) {
         return x.second > y.second;
       });
-
+    auto it = std::remove_if(gene.begin(), gene.end(), [](std::pair<Ev_p, double> x) {
+        return x.second == 0;
+      });
+    
     for(int i = 0; i < 3; i++) {
       std::cout << "score: " << gene[i].second * score_sum << "\tEV: " << ev_show(gene[i].first) << std::endl;
     }
+    auto minmax = std::minmax_element(gene.begin(), it, [](std::pair<Ev_p, double> x, std::pair<Ev_p, double> y) {
+        return x.second > y.second;
+      });
+    std::cout << "max: " << minmax.first->second * score_sum
+              << "\tmed: " << gene[(it - gene.begin()) / 2].second  * score_sum
+              << "\tavg: " << score_sum / (it - gene.begin()) 
+              << "\tmin: " << minmax.second->second * score_sum << std::endl;
   }
 }
 
