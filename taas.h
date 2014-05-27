@@ -1,3 +1,6 @@
+#ifndef _TAAS_H_
+#define _TAAS_H_
+
 #include <array>
 #include <vector>
 
@@ -59,3 +62,5 @@ namespace taas {
     virtual bool move(int d) override;
   };
 }
+
+#endif
