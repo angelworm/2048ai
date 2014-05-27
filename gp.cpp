@@ -359,10 +359,15 @@ void grown(std::vector<Ev_p> evs={}) {
     auto minmax = std::minmax_element(gene.begin(), it, [](std::pair<Ev_p, double> x, std::pair<Ev_p, double> y) {
         return x.second > y.second;
       });
+    int size_sum = 0;
+    std::for_each(gene.begin(), it, [&](std::pair<Ev_p, double> x){
+        size_sum += ev_size(x.first);
+      });
     std::cout << "max: " << minmax.first->second * score_sum
               << "\tmed: " << gene[(it - gene.begin()) / 2].second  * score_sum
               << "\tavg: " << score_sum / (it - gene.begin()) 
-              << "\tmin: " << minmax.second->second * score_sum << std::endl;
+              << "\tmin: " << minmax.second->second * score_sum
+              << "\tts: "  << size_sum / (it - gene.begin()) << std::endl;
   }
 }
 
