@@ -410,6 +410,7 @@ int run2048(Ev_p evf, bool show=true) {
          taas::pb(a.b);
        }
        a.move(d);
+	   assert(a.moved);
      }
    }catch(const std::exception& e) {
 	 std::cout << e.what() << std::endl;
