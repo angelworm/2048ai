@@ -239,7 +239,7 @@ int guess(taas::board& b, Ev_p ev, int n=4) {
       }
     }
   }
-  assert(dit != -1);
+  assert(dir != -1);
   return dir;
 }
  

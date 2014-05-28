@@ -154,10 +154,10 @@ bool taas::Local::move(int d) {
   auto p = {0.9, 0.1};
 
   this->b = taas::mov(this->b, d);
-  this->over  = taas::over(this->b);
+  this->moved = (this->b != bb);
 
   inp(this->b, v, p, this->g);
-  this->moved = (this->b != bb);
+  this->over  = taas::over(this->b);
   this->score = taas::score(this->b);
   return this->moved;
 }
