@@ -11,22 +11,164 @@
 #include <queue>
 #include <set>
 #include <cstdint>
+#include <functional>
 
 #include "taas.h"
 
 enum class ev_name{
-e_0 = 0, e_1, e_2, e_3, e_4, e_5, e_6, e_7, e_8, e_9,
+  e_0 = 0, e_1, e_2, e_3, e_4, e_5, e_6, e_7, e_8, e_9,
     e_b0, e_b1, e_b2, e_b3,
     e_b4, e_b5, e_b6, e_b7,
     e_b8, e_b9, e_b10,e_b11,
     e_b12,e_b13,e_b14,e_b15,
+	ev_score, ev_sclg, ev_max, ev_cm, ev_cm_max, ev_step, ev_hole, ev_eq, ev_di, 
+	
     e_log, e_abs, e_po2,
     e_mul, e_add, e_sub, e_div,
     size
     };
 static const std::vector<std::string> ev_name_str = {
-  "e_0", "e_1", "e_2", "e_3", "e_4", "e_5", "e_6", "e_7", "e_8", "e_9", "e_b0", "e_b1", "e_b2", "e_b3", "e_b4", "e_b5", "e_b6", "e_b7", "e_b8", "e_b9", "e_b10", "e_b11", "e_b12", "e_b13", "e_b14", "e_b15", "e_log", "e_abs", "e_po2", "e_mul", "e_add", "e_sub", "e_div"
+  "e_0", "e_1", "e_2", "e_3", "e_4", "e_5", "e_6", "e_7", "e_8", "e_9", "e_b0", "e_b1", "e_b2", "e_b3", "e_b4", "e_b5", "e_b6", "e_b7", "e_b8", "e_b9", "e_b10", "e_b11", "e_b12", "e_b13", "e_b14", "e_b15", "ev_score", "ev_sclg", "ev_max", "ev_cm", "ev_cm_max", "ev_step", "ev_hole", "ev_eq", "ev_di", "e_log", "e_abs", "e_po2", "e_mul", "e_add", "e_sub", "e_div"
 };
+
+using score = double;
+
+double ev_score(taas::board& b) {
+  return taas::score(b);
+}
+
+double ev_sclg(taas::board& b) {
+  double ret = 0;
+  for(auto l:b) {
+	for(auto x:l) {
+	  x = x == 0 ? 1 : x;
+	  double s = x * std::log(x) / std::log(2);
+	  s = s == 0 ? 1 : s;
+	  ret += log(s) / std::log(2);
+	}
+  }
+  return ret;
+}
+
+double ev_max(taas::board &b) {
+  double ret = 0;
+  for(auto l:b) {
+    ret= std::fmax(ret, *std::max_element(l.begin(), l.end()));
+  }
+  return ret;
+}
+
+double ev_cm(taas::board &b) {
+  double max = ev_max(b);
+  for(auto bx:{b[0][0], b[3][0], b[0][3], b[3][3]})
+	if(bx == max) return 10;
+  return 0;
+}
+
+double ev_cm_max(taas::board &b) {
+  return ev_max(b) * ev_cm(b);
+}
+
+void ev_step_sub_board_rev(taas::board &b) {
+  for(int i = 0; i < 8; i++) {
+	int ir = 15-i;
+	std::swap(b[i/4][i%4], b[ir/4][ir%4]);
+  }
+}
+
+double ev_step_sub(taas::board &b) {
+  int bx = -1;
+  int score = 0;
+  
+  for(auto l:b) {
+	for(auto x:l) {
+	  if(bx == -1) {
+		// n.t.d
+	  } else if(bx == 0) {
+		return score;
+	  } else if (bx == x) {
+		score += std::log(bx) / std::log(2) * 2;
+	  } else if (bx == x * 2) {
+		score += std::log(bx) / std::log(2);
+	  } else {
+		return score;
+	  }
+	  bx = x;
+	}
+  }
+  return score;
+}
+
+double ev_step(taas::board &b) {
+  int ret = 0;
+  for(int i = 0; i < 4; i++) {
+	taas::board br = taas::rot(b, i);
+	ret = std::fmax(ret, ev_step_sub(br));
+	ev_step_sub_board_rev(br);
+	ret = std::fmax(ret, ev_step_sub(br));
+  }
+  return ret;
+}
+
+double ev_hole(taas::board& b) {
+  int r = 0;
+  for(auto l:b) {
+	for(auto x:l) {
+	  if(x == 0) {
+		r += 1;
+	  }
+	}
+  }
+  return r;
+}
+
+double ev_eq(taas::board& b) {
+  int r = 0;
+  std::array<int, 4> lb = {-1, -1, -1, -1};
+  for(int y = 0; y < 4; y++) {
+	int xb = -1;
+	for(int x = 0; x < 4; x++) {
+	  if(b[y][x] == xb) {
+		r += 1;
+	  }
+	  if(b[y][x] == lb[x]) {
+		r += 1;
+	  }
+	  xb = b[y][x];
+	}
+	lb = b[y];
+  }
+  return r;
+}
+
+double ev_di(taas::board& b) {
+  int r = 0;
+  std::array<int, 4> lb = {-1, -1, -1, -1};
+  for(int y = 0; y < 4; y++) {
+	int xb = -1;
+	for(int x = 0; x < 4; x++) {
+	  r -= xb == -1    ? 0 : std::abs(b[y][x] == xb);
+	  r -= lb[x] == -1 ? 0 : std::abs(b[y][x] == lb[x]);
+	  xb = b[y][x];
+	}
+	lb = b[y];
+  }
+  return r;
+}
+
+static std::map<ev_name, std::function<double(taas::board&)> > ev_primitive_table {
+  {ev_name::ev_score, ev_score},
+  {ev_name::ev_sclg, ev_sclg},
+  {ev_name::ev_max, ev_max},
+  {ev_name::ev_cm, ev_cm},
+  {ev_name::ev_cm_max, ev_cm_max},
+  {ev_name::ev_step, ev_step},
+  {ev_name::ev_hole, ev_hole},
+  {ev_name::ev_eq, ev_eq},
+  {ev_name::ev_di, ev_di},
+};
+
+#pragma mark - EV Trees
 
 struct Ev {
   ev_name name;
@@ -38,9 +180,9 @@ using Ev_p = std::shared_ptr<Ev>;
 Ev_p ev_gen() {
   Ev_p ret = std::make_shared<Ev>(Ev());
   std::vector<ev_name> g;
-  for(auto i: {ev_name::e_0, ev_name::e_1, ev_name::e_2, ev_name::e_3, ev_name::e_4, ev_name::e_5, ev_name::e_6, ev_name::e_7, ev_name::e_8, ev_name::e_9, ev_name::e_b0, ev_name::e_b1, ev_name::e_b2, ev_name::e_b3, ev_name::e_b4, ev_name::e_b5, ev_name::e_b6, ev_name::e_b7, ev_name::e_b8, ev_name::e_b9, ev_name::e_b10, ev_name::e_b11, ev_name::e_b12, ev_name::e_b13, ev_name::e_b14,ev_name::e_b15} )
+  for(auto i: {ev_name::e_0, ev_name::e_1, ev_name::e_2, ev_name::e_3, ev_name::e_4, ev_name::e_5, ev_name::e_6, ev_name::e_7, ev_name::e_8, ev_name::e_9, ev_name::e_b0, ev_name::e_b1, ev_name::e_b2, ev_name::e_b3, ev_name::e_b4, ev_name::e_b5, ev_name::e_b6, ev_name::e_b7, ev_name::e_b8, ev_name::e_b9, ev_name::e_b10, ev_name::e_b11, ev_name::e_b12, ev_name::e_b13, ev_name::e_b14,ev_name::e_b15, ev_name::ev_score, ev_name::ev_sclg, ev_name::ev_max, ev_name::ev_cm, ev_name::ev_cm_max, ev_name::ev_step, ev_name::ev_hole, ev_name::ev_eq, ev_name::ev_di} )
     g.push_back(i);
-  for(int c = 0; c < 6; c++)
+  for(int c = 0; c < 5; c++)
     for(auto i: {ev_name::e_log, ev_name::e_abs, ev_name::e_po2, ev_name::e_mul, ev_name::e_add, ev_name::e_sub, ev_name::e_div} )
       g.push_back(i);
 
@@ -126,36 +268,51 @@ std::array<Ev_p, 2> ev_mut(Ev_p a, Gen& g) {
   return {ev_inp(a, ev_select(b, bi), ai), ev_inp(b, ev_select(a, ai), bi)};
 }
 
-double ev_eval(Ev_p a, taas::board& b) {
-  int x;
+double ev_eval_sub(Ev_p a, std::map<ev_name, double> ev_t) {
   double v;
-  
   switch(a->name) {
   case ev_name::e_0: case ev_name::e_1: case ev_name::e_2: case ev_name::e_3: case ev_name::e_4: case ev_name::e_5: case ev_name::e_6: case ev_name::e_7: case ev_name::e_8: case ev_name::e_9:
-    return static_cast<int>(a->name);
-  case ev_name::e_b0: case ev_name::e_b1: case ev_name::e_b2: case ev_name::e_b3: case ev_name::e_b4: case ev_name::e_b5: case ev_name::e_b6: case ev_name::e_b7: case ev_name::e_b8: case ev_name::e_b9: case ev_name::e_b10: case ev_name::e_b11: case ev_name::e_b12: case ev_name::e_b13: case ev_name::e_b14: case ev_name::e_b15:
-    x = static_cast<int>(a->name) - static_cast<int>(ev_name::e_b0);
-    return b[x / 4][x % 4];
+  case ev_name::e_b0: case ev_name::e_b1: case ev_name::e_b2: case ev_name::e_b3: case ev_name::e_b4: case ev_name::e_b5: case ev_name::e_b6: case ev_name::e_b7: case ev_name::e_b8: case ev_name::e_b9: case ev_name::e_b10: case ev_name::e_b11: case ev_name::e_b12: case ev_name::e_b13: case ev_name::e_b14: case ev_name::e_b15: case ev_name::ev_score: case ev_name::ev_sclg: case ev_name::ev_max: case ev_name::ev_cm: case ev_name::ev_cm_max: case ev_name::ev_step: case ev_name::ev_hole: case ev_name::ev_eq: case ev_name::ev_di: 
+    return ev_t[a->name];
   case ev_name::e_log: 
-    v = ev_eval(a->ch[0], b);
+    v = ev_eval_sub(a->ch[0], ev_t);
     v = (v <= 1 ? 1 : v);
     return std::log(v) / std::log(2);
-  case ev_name::e_abs: return std::abs(ev_eval(a->ch[0], b));
-  case ev_name::e_po2: return std::pow(ev_eval(a->ch[0], b), 2);
-  case ev_name::e_mul: return ev_eval(a->ch[0], b) * ev_eval(a->ch[1], b);
-  case ev_name::e_add: return ev_eval(a->ch[0], b) + ev_eval(a->ch[1], b);
-  case ev_name::e_sub: return ev_eval(a->ch[0], b) - ev_eval(a->ch[1], b);
+  case ev_name::e_abs: return std::abs(ev_eval_sub(a->ch[0], ev_t));
+  case ev_name::e_po2: return std::pow(ev_eval_sub(a->ch[0], ev_t), 2);
+  case ev_name::e_mul: return ev_eval_sub(a->ch[0], ev_t) * ev_eval_sub(a->ch[1], ev_t);
+  case ev_name::e_add: return ev_eval_sub(a->ch[0], ev_t) + ev_eval_sub(a->ch[1], ev_t);
+  case ev_name::e_sub: return ev_eval_sub(a->ch[0], ev_t) - ev_eval_sub(a->ch[1], ev_t);
   case ev_name::e_div: 
-    v = ev_eval(a->ch[1], b);
+    v = ev_eval_sub(a->ch[1], ev_t);
     if(v == 0)
       return 0;
     else
-      return ev_eval(a->ch[0], b) / v;
+      return ev_eval_sub(a->ch[0], ev_t) / v;
   default:
-    assert(false);
+    assert(std::string("no such ev name") == "");
     return 0;
   }
+}
 
+double ev_eval(Ev_p a, taas::board& b) {  
+  std::map<ev_name, double> t;
+  
+  int c = 0;
+  for(auto i: {ev_name::e_0, ev_name::e_1, ev_name::e_2, ev_name::e_3, ev_name::e_4, ev_name::e_5, ev_name::e_6, ev_name::e_7, ev_name::e_8, ev_name::e_9})
+	t[i] = c++;
+  c = 0;
+  for(auto i:{ev_name::e_b0, ev_name::e_b1, ev_name::e_b2, ev_name::e_b3, ev_name::e_b4, ev_name::e_b5, ev_name::e_b6, ev_name::e_b7, ev_name::e_b8, ev_name::e_b9, ev_name::e_b10, ev_name::e_b11, ev_name::e_b12, ev_name::e_b13, ev_name::e_b14, ev_name::e_b15}) {
+	t[i] = b[c / 4][c % 4];
+	c++;
+  }
+  for(auto pev: ev_primitive_table) {
+	double evv = pev.second(b);
+	assert(evv != -std::numeric_limits<double>::infinity());
+	t[pev.first] = evv;
+  }
+  
+  return ev_eval_sub(a, t);
 }
 
 std::string ev_show(Ev_p a) {
@@ -239,7 +396,7 @@ int guess(taas::board& b, Ev_p ev, int n=4) {
       }
     }
   }
-  assert(dit != -1);
+  assert(dir != -1);
   return dir;
 }
  
@@ -271,7 +428,7 @@ void addgene(Ev_p a, std::vector<Ev_p>& list, std::set<std::uint64_t>& hash){
   }
 }
 
-void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w) {
+void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w, const int score_sum) {
   std::vector<std::pair<Ev_p, double> > gene;
 
   for(size_t i = 0; i < g.size(); i++) {
@@ -385,7 +542,7 @@ void grown(std::vector<Ev_p> evs={}) {
       }
     }
     
-    analyze(gene, weight);
+    analyze(gene, weight, score_sum);
   }
 }
 
