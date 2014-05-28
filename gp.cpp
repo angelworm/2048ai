@@ -40,7 +40,7 @@ Ev_p ev_gen() {
   std::vector<ev_name> g;
   for(auto i: {ev_name::e_0, ev_name::e_1, ev_name::e_2, ev_name::e_3, ev_name::e_4, ev_name::e_5, ev_name::e_6, ev_name::e_7, ev_name::e_8, ev_name::e_9, ev_name::e_b0, ev_name::e_b1, ev_name::e_b2, ev_name::e_b3, ev_name::e_b4, ev_name::e_b5, ev_name::e_b6, ev_name::e_b7, ev_name::e_b8, ev_name::e_b9, ev_name::e_b10, ev_name::e_b11, ev_name::e_b12, ev_name::e_b13, ev_name::e_b14,ev_name::e_b15} )
     g.push_back(i);
-  for(int c = 0; c < 4; c++)
+  for(int c = 0; c < 6; c++)
     for(auto i: {ev_name::e_log, ev_name::e_abs, ev_name::e_po2, ev_name::e_mul, ev_name::e_add, ev_name::e_sub, ev_name::e_div} )
       g.push_back(i);
 
@@ -260,7 +260,7 @@ int run2048(Ev_p evf, bool show=true) {
    return a.score;
 }
 
-const int CHILD_MAX = 400;
+const int CHILD_MAX = 1000;
 
 void addgene(Ev_p a, std::vector<Ev_p>& list, std::set<std::uint64_t>& hash){
   std::uint64_t h = ev_hash(a);
