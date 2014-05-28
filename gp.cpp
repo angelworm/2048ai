@@ -256,7 +256,7 @@ template<class Gen>
 std::array<Ev_p, 2> ev_cross1(Ev_p a, Ev_p b, Gen& g) {
   int ai = std::uniform_int_distribution<int>(0, ev_size(a) - 1)(g);
   int bi = std::uniform_int_distribution<int>(0, ev_size(b) - 1)(g);
-  return {ev_inp(a, ev_select(b, bi), ai), ev_inp(b, ev_select(a, ai), bi)};
+  return {{ev_inp(a, ev_select(b, bi), ai), ev_inp(b, ev_select(a, ai), bi)}};
 }
 
 template<class Gen>
@@ -265,7 +265,7 @@ std::array<Ev_p, 2> ev_mut(Ev_p a, Gen& g) {
   int ai = std::uniform_int_distribution<int>(0, ev_size(a) - 1)(g);
   int bi = std::uniform_int_distribution<int>(0, ev_size(b) - 1)(g);
 
-  return {ev_inp(a, ev_select(b, bi), ai), ev_inp(b, ev_select(a, ai), bi)};
+  return {{ev_inp(a, ev_select(b, bi), ai), ev_inp(b, ev_select(a, ai), bi)}};
 }
 
 double ev_eval_sub(Ev_p a, std::map<ev_name, double> ev_t) {
@@ -476,7 +476,7 @@ void grown(std::vector<Ev_p> evs={}) {
   std::vector<double > act_w = {0.2, 0.75,  0.05};
 
   for(auto v:evs) {
-    hashs.emplace(ev_hash(v));
+    hashs.insert(ev_hash(v));
     gene.push_back(v);
     weight.push_back(1.0/CHILD_MAX);
   }

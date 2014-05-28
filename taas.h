@@ -37,8 +37,8 @@ namespace taas {
     virtual bool move(int d);
 
     board b;
-    int score;
-    bool over, moved;
+    int score = 0;
+    bool over = false, moved = false;
     std::mt19937 g;
   };
 }

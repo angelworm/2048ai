@@ -4,7 +4,7 @@
 
 #include "taas.h"
 
-static taas::board nullboard({0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0});
+static taas::board nullboard{{{{0,0,0,0}}, {{0,0,0,0}}, {{0,0,0,0}}, {{0,0,0,0}}}};
 
 using namespace taas;
 
@@ -113,7 +113,6 @@ int taas::score(const board& b) {
 }
 
 bool taas::over(const board& b) {
-  bool ret = true;
   int yb[] = {0,0,0,0};           
   for(auto l:b) {
     int xb = 0, i = 0;
