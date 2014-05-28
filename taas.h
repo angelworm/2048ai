@@ -41,14 +41,6 @@ namespace taas {
     bool over, moved;
     std::mt19937 g;
   };
-    
-  class API : public Local {
-  public:
-    API(std::string serv);
-    virtual ~API() = default;
-    
-    virtual bool move(int d) override;
-  };
 }
 
 #endif
