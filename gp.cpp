@@ -271,7 +271,7 @@ void addgene(Ev_p a, std::vector<Ev_p>& list, std::set<std::uint64_t>& hash){
   }
 }
 
-void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w) {
+void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w, const int score_sum) {
   std::vector<std::pair<Ev_p, double> > gene;
 
   for(size_t i = 0; i < g.size(); i++) {
@@ -385,7 +385,7 @@ void grown(std::vector<Ev_p> evs={}) {
       }
     }
     
-    analyze(gene, weight);
+    analyze(gene, weight, score_sum);
   }
 }
 
