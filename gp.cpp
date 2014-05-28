@@ -40,7 +40,7 @@ Ev_p ev_gen() {
   std::vector<ev_name> g;
   for(auto i: {ev_name::e_0, ev_name::e_1, ev_name::e_2, ev_name::e_3, ev_name::e_4, ev_name::e_5, ev_name::e_6, ev_name::e_7, ev_name::e_8, ev_name::e_9, ev_name::e_b0, ev_name::e_b1, ev_name::e_b2, ev_name::e_b3, ev_name::e_b4, ev_name::e_b5, ev_name::e_b6, ev_name::e_b7, ev_name::e_b8, ev_name::e_b9, ev_name::e_b10, ev_name::e_b11, ev_name::e_b12, ev_name::e_b13, ev_name::e_b14,ev_name::e_b15} )
     g.push_back(i);
-  for(int c = 0; c < 4; c++)
+  for(int c = 0; c < 6; c++)
     for(auto i: {ev_name::e_log, ev_name::e_abs, ev_name::e_po2, ev_name::e_mul, ev_name::e_add, ev_name::e_sub, ev_name::e_div} )
       g.push_back(i);
 
@@ -75,52 +75,55 @@ int ev_size(Ev_p a) {
   return ret;
 }
 
-Ev_p ev_select_sub(Ev_p a, int n) {
-  if(n == 0) {
-    return ev_copy(a);
+Ev_p ev_select(Ev_p a, int ind) {
+  assert(ind < ev_size(a));
+
+  if(ind == 0) {
+    return a;
   } else {
-    n -= 1;
+    ind -= 1;
     for(auto i:a->ch) {
-      n = n - ev_size(i);
-      if(n <= 0) {
-        return ev_select_sub(i, n);
+      if(ind < ev_size(i)) {
+        return ev_select(i, ind);
       }
+      ind = ind - ev_size(i);
     }
+	std::cout << "ev_select index overflow" << std::endl;
     return ev_copy(a);
   }
 }
 
-Ev_p ev_select(Ev_p a) {
-  int ind = std::rand() % ev_size(a);
-  return ev_select_sub(a, ind);
-}
-
-Ev_p ev_cross_sub(Ev_p a, Ev_p b, int n) {
-  if(n == 0) {
-    return ev_select(b);
+Ev_p ev_inp(Ev_p a, Ev_p b, int n) {
+  if(n < 0) {
+	return ev_copy(a);
+  } else if(n == 0) {
+    return ev_copy(b);
   } else {
     Ev_p ret = std::make_shared<Ev>(Ev());
     ret->name = a->name;
     n = n-1;
     for(auto i:a->ch) {
-      if(n <= 0) {
-        ret->ch.push_back(ev_copy(i));
-      } else {
-        ret->ch.push_back(ev_cross_sub(i, b, n));
-        n = n - ev_size(i);
-      }
+       ret->ch.push_back(ev_inp(i, b, n));
+	   n = n - ev_size(i);
     }
     return ret;
   }
 }
 
-Ev_p ev_cross(Ev_p a, Ev_p b) {
-  int ind = std::rand() % ev_size(a);
-  return ev_cross_sub(a, b, ind);
+template<class Gen>
+std::array<Ev_p, 2> ev_cross1(Ev_p a, Ev_p b, Gen& g) {
+  int ai = std::uniform_int_distribution<int>(0, ev_size(a) - 1)(g);
+  int bi = std::uniform_int_distribution<int>(0, ev_size(b) - 1)(g);
+  return {ev_inp(a, ev_select(b, bi), ai), ev_inp(b, ev_select(a, ai), bi)};
 }
 
-Ev_p ev_inp(Ev_p a) {
-  return ev_cross(a, ev_gen());
+template<class Gen>
+std::array<Ev_p, 2> ev_mut(Ev_p a, Gen& g) {
+  Ev_p b = ev_gen();
+  int ai = std::uniform_int_distribution<int>(0, ev_size(a) - 1)(g);
+  int bi = std::uniform_int_distribution<int>(0, ev_size(b) - 1)(g);
+
+  return {ev_inp(a, ev_select(b, bi), ai), ev_inp(b, ev_select(a, ai), bi)};
 }
 
 double ev_eval(Ev_p a, taas::board& b) {
@@ -190,7 +193,7 @@ std::uint64_t ev_hash(Ev_p a) {
   return ret ^ tmp;
 }
  
- double guessN(taas::board &b1, Ev_p evf, int n=4, bool player=true, double a = -std::numeric_limits<double>::infinity(), double b=std::numeric_limits<double>::infinity()) {
+double guessN(taas::board &b1, Ev_p evf, int n=4, bool player=true, double a = -std::numeric_limits<double>::infinity(), double b=std::numeric_limits<double>::infinity()) {
   if(n == 0)
     return ev_eval(evf, b1);
     
@@ -236,6 +239,7 @@ int guess(taas::board& b, Ev_p ev, int n=4) {
       }
     }
   }
+  assert(dit != -1);
   return dir;
 }
  
@@ -250,7 +254,8 @@ int run2048(Ev_p evf, bool show=true) {
        }
        a.move(d);
      }
-   }catch(...) {
+   }catch(const std::exception& e) {
+	 std::cout << e.what() << std::endl;
      return 0;
    }
    return a.score;
@@ -266,8 +271,8 @@ void addgene(Ev_p a, std::vector<Ev_p>& list, std::set<std::uint64_t>& hash){
   }
 }
 
-void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w, const int score_sum) {
-  std::vector<std::pair<Ev_p, double> >gene;
+void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w) {
+  std::vector<std::pair<Ev_p, double> > gene;
 
   for(size_t i = 0; i < g.size(); i++) {
     gene.push_back(std::make_pair(g[i], w[i]));
@@ -278,24 +283,26 @@ void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w, const int
         return x.second > y.second;
     });
 
+  for(int i = 0; i < 3; i++) {
+    std::cout << "score: " << gene[i].second << "\tEV: " << ev_show(gene[i].first) << std::endl;
+  }
+
   auto it = std::remove_if(gene.begin(), gene.end(), [](std::pair<Ev_p, double> x) {
       return x.second == 0;
     });  
-  for(int i = 0; i < 3; i++) {
-    std::cout << "score: " << gene[i].second * score_sum << "\tEV: " << ev_show(gene[i].first) << std::endl;
-  }
 
-  auto minmax = std::minmax_element(gene.begin(), it, [](std::pair<Ev_p, double> x, std::pair<Ev_p, double> y) {
+  auto minmax = std::minmax_element(gene.begin(), it, [](std::pair<Ev_p, double> x,
+														 std::pair<Ev_p, double> y) {
       return x.second > y.second;
     });
   int size_sum = 0;
   std::for_each(gene.begin(), it, [&](std::pair<Ev_p, double> x){
       size_sum += ev_size(x.first);
     });
-  std::cout << "max: " << minmax.first->second * score_sum
-            << "\tmed: " << gene[(it - gene.begin()) / 2].second  * score_sum
+  std::cout << "max: " << minmax.first->second
+            << "\tmed: " << gene[(it - gene.begin()) / 2].second
             << "\tavg: " << score_sum / (it - gene.begin()) 
-            << "\tmin: " << minmax.second->second * score_sum
+            << "\tmin: " << minmax.second->second
             << "\tts: "  << size_sum * 1.0 / (it - gene.begin()) << std::endl;
   
 }
@@ -342,13 +349,13 @@ void grown(std::vector<Ev_p> evs={}) {
       case 1:
         a = taas::rwc(gene, weight, g);
         b = taas::rwc(gene, weight, g);
-        addgene(ev_cross(a, b), gene2, hashs2);
+		for(auto x:ev_cross1(a, b, g))
+		  addgene(x, gene2, hashs2);
         break;
       case 2:
         a = taas::rwc(gene, weight, g);
-        b = ev_gen();
-        addgene(ev_cross(a, b), gene2, hashs2);
-        addgene(ev_cross(b, a), gene2, hashs2);
+		for(auto x:ev_mut(a, g))
+		  addgene(x, gene2, hashs2);
         break;
       }
     }
@@ -356,6 +363,7 @@ void grown(std::vector<Ev_p> evs={}) {
     std::cout << "***** " << gen << ":testing *****" << std::endl;
 
     gene.clear();
+    weight.clear();
     int score_sum = 0;
 #   pragma omp parallel for reduction(+:score_sum)
     for(int i = 0; i < CHILD_MAX; i++) {
@@ -377,12 +385,7 @@ void grown(std::vector<Ev_p> evs={}) {
       }
     }
     
-#   pragma omp parallel for
-    for(int i = 0; i < CHILD_MAX; i++) {
-      weight[i] /= score_sum;
-    }
-    
-    analyze(gene, weight, score_sum);
+    analyze(gene, weight);
   }
 }
 
