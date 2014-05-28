@@ -273,7 +273,8 @@ void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w, const int
     gene.push_back(std::make_pair(g[i], w[i]));
   }
 
-  std::sort(gene.begin(), gene.end(), [](std::pair<Ev_p, double> x, std::pair<Ev_p, double> y) {
+  std::sort(gene.begin(), gene.end(), [](std::pair<Ev_p, double> x,
+                                         std::pair<Ev_p, double> y) {
         return x.second > y.second;
     });
 
@@ -307,7 +308,7 @@ void grown(std::vector<Ev_p> evs={}) {
   std::mt19937 g(sg());
 
   std::vector<int> act = {0, 1, 2};
-  std::vector<double > act_w = {0.3, 0.65,  0.05};
+  std::vector<double > act_w = {0.2, 0.75,  0.05};
 
   for(auto v:evs) {
     hashs.emplace(ev_hash(v));
