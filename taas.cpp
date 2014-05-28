@@ -92,11 +92,12 @@ std::vector<std::pair<int, int>> taas::hole(const board& b) {
   return ret;
 }
 
-void taas::inp(board &b, const std::vector<std::pair<int, double>>& l) {
+template<class Gen>
+void taas::inp(board &b, const std::vector<int>& data, const std::vector<double>& ps, Gen& g) {
   auto h = taas::hole(b);
   if(h.empty()) return;
   int mi = std::rand() % h.size();
-  int vi = rwc(l);
+  int vi = taas::rwc(data, ps, g);
   auto i = h[mi];
   b[i.first][i.second] = vi;
 }
@@ -139,20 +140,23 @@ void taas::pb(const board& b) {
 
 taas::Local::Local()
   :over(false), moved(false), score(0), b(nullboard) {
-  auto v = {std::make_pair(2, 0.9),std::make_pair(4, 0.1)};
-  inp(this->b, v);
-  inp(this->b, v);
+  std::random_device sg;
+  this->g.seed(sg());
+  auto v = {2, 4};
+  auto p = {0.9, 0.1};
+  inp(this->b, v, p, this->g);
+  inp(this->b, v, p, this->g);
 }
 
 bool taas::Local::move(int d) {
   board bb = this->b;
-  auto v = {std::make_pair(2, 0.9),std::make_pair(4, 0.1)};
+  auto v = {2, 4};
+  auto p = {0.9, 0.1};
 
   this->b = taas::mov(this->b, d);
   this->over  = taas::over(this->b);
 
-
-  inp(this->b, v);
+  inp(this->b, v, p, this->g);
   this->moved = (this->b != bb);
   this->score = taas::score(this->b);
   return this->moved;

@@ -266,26 +266,62 @@ void addgene(Ev_p a, std::vector<Ev_p>& list, std::set<std::uint64_t>& hash){
   }
 }
 
+void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w, const int score_sum) {
+  std::vector<std::pair<Ev_p, double> >gene;
+
+  for(size_t i = 0; i < g.size(); i++) {
+    gene.push_back(std::make_pair(g[i], w[i]));
+  }
+
+  std::sort(gene.begin(), gene.end(), [](std::pair<Ev_p, double> x, std::pair<Ev_p, double> y) {
+        return x.second > y.second;
+    });
+
+  auto it = std::remove_if(gene.begin(), gene.end(), [](std::pair<Ev_p, double> x) {
+      return x.second == 0;
+    });  
+  for(int i = 0; i < 3; i++) {
+    std::cout << "score: " << gene[i].second * score_sum << "\tEV: " << ev_show(gene[i].first) << std::endl;
+  }
+
+  auto minmax = std::minmax_element(gene.begin(), it, [](std::pair<Ev_p, double> x, std::pair<Ev_p, double> y) {
+      return x.second > y.second;
+    });
+  int size_sum = 0;
+  std::for_each(gene.begin(), it, [&](std::pair<Ev_p, double> x){
+      size_sum += ev_size(x.first);
+    });
+  std::cout << "max: " << minmax.first->second * score_sum
+            << "\tmed: " << gene[(it - gene.begin()) / 2].second  * score_sum
+            << "\tavg: " << score_sum / (it - gene.begin()) 
+            << "\tmin: " << minmax.second->second * score_sum
+            << "\tts: "  << size_sum * 1.0 / (it - gene.begin()) << std::endl;
+  
+}
+
 void grown(std::vector<Ev_p> evs={}) {
-  std::vector<std::pair<Ev_p, double> > gene;
+  std::vector<Ev_p> gene;
+  std::vector<double> weight;
   std::set<std::uint64_t> hashs;
-  std::vector<std::pair<int, double> > actions = {
-    {0, 0.3},
-    {1, 0.65},
-    {2, 0.05}
-  };
+  std::random_device sg;
+  std::mt19937 g(sg());
+
+  std::vector<int> act = {0, 1, 2};
+  std::vector<double > act_w = {0.3, 0.65,  0.05};
 
   for(auto v:evs) {
     hashs.emplace(ev_hash(v));
-    gene.push_back(std::make_pair(v, 1.0/CHILD_MAX));
+    gene.push_back(v);
+    weight.push_back(1.0/CHILD_MAX);
   }
 
   while(gene.size() < CHILD_MAX) {
     Ev_p b = ev_gen();
     std::uint64_t h = ev_hash(b);
     if(hashs.find(h) == hashs.end()) {
-      gene.push_back(std::make_pair(b, 1.0/CHILD_MAX));
       hashs.insert(h);
+      gene.push_back(b);
+      weight.push_back(1.0/CHILD_MAX);
     }
   }
 
@@ -297,18 +333,18 @@ void grown(std::vector<Ev_p> evs={}) {
     
     while(gene2.size() < CHILD_MAX) {
       Ev_p a,b;
-      switch(taas::rwc(actions)) {
+      switch(taas::rwc(act, act_w, g)) {
       case 0:
-        a = taas::rwc<Ev_p>(gene);
+        a = taas::rwc(gene, weight, g);
         addgene(a, gene2, hashs2);
         break;
       case 1:
-        a = taas::rwc<Ev_p>(gene);
-        b = taas::rwc<Ev_p>(gene);
+        a = taas::rwc(gene, weight, g);
+        b = taas::rwc(gene, weight, g);
         addgene(ev_cross(a, b), gene2, hashs2);
         break;
       case 2:
-        a = taas::rwc<Ev_p>(gene);
+        a = taas::rwc(gene, weight, g);
         b = ev_gen();
         addgene(ev_cross(a, b), gene2, hashs2);
         addgene(ev_cross(b, a), gene2, hashs2);
@@ -322,7 +358,6 @@ void grown(std::vector<Ev_p> evs={}) {
     int score_sum = 0;
 #   pragma omp parallel for reduction(+:score_sum)
     for(int i = 0; i < CHILD_MAX; i++) {
-      //std::cout << i << ":" << ev_show(gene2[i]) << std::endl;
       std::array<int, 10> scores;
       int score = 0;
       for(int j = 0; j < 10; j++) {
@@ -336,38 +371,17 @@ void grown(std::vector<Ev_p> evs={}) {
 
 #     pragma omp critical
       {
-        //        std::cout << i << ":" << score << std::endl;
-        gene.push_back(std::make_pair(gene2[i], score));
+        gene.push_back(gene2[i]);
+        weight.push_back(score);
       }
     }
     
 #   pragma omp parallel for
     for(int i = 0; i < CHILD_MAX; i++) {
-      gene[i].second /= score_sum;
+      weight[i] /= score_sum;
     }
     
-    std::sort(gene.begin(), gene.end(), [](std::pair<Ev_p, double> x, std::pair<Ev_p, double> y) {
-        return x.second > y.second;
-      });
-    auto it = std::remove_if(gene.begin(), gene.end(), [](std::pair<Ev_p, double> x) {
-        return x.second == 0;
-      });
-    
-    for(int i = 0; i < 3; i++) {
-      std::cout << "score: " << gene[i].second * score_sum << "\tEV: " << ev_show(gene[i].first) << std::endl;
-    }
-    auto minmax = std::minmax_element(gene.begin(), it, [](std::pair<Ev_p, double> x, std::pair<Ev_p, double> y) {
-        return x.second > y.second;
-      });
-    int size_sum = 0;
-    std::for_each(gene.begin(), it, [&](std::pair<Ev_p, double> x){
-        size_sum += ev_size(x.first);
-      });
-    std::cout << "max: " << minmax.first->second * score_sum
-              << "\tmed: " << gene[(it - gene.begin()) / 2].second  * score_sum
-              << "\tavg: " << score_sum / (it - gene.begin()) 
-              << "\tmin: " << minmax.second->second * score_sum
-              << "\tts: "  << size_sum * 1.0 / (it - gene.begin()) << std::endl;
+    analyze(gene, weight, score_sum);
   }
 }
 

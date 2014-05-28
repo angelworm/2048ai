@@ -3,36 +3,23 @@
 
 #include <array>
 #include <vector>
+#include <random>
+#include <algorithm>
 
 namespace taas {
   using board = std::array<std::array<int, 4>, 4>;
-  
-  template<class T>
-  T rwc(std::vector<std::pair<T, double> > l){
-    std::vector<double> ps;
-    double total = 0;
-    for(auto x:l) {
-      total += x.second;
-      ps.push_back(total);
-    }
-    
-    for(auto& x:ps) {
-      x /= total;
-    }
-    
-    double top = std::rand() * 1.0 / RAND_MAX;
-    for(int i = 0; i < l.size(); i++) {
-      if(ps[i] >= top) {
-        return l[i].first;
-      }
-    }
-    return l.back().first;
+
+  template<class T, class Gen>
+  T rwc(const std::vector<T>& data, const std::vector<double>& ps, Gen& g){
+    std::discrete_distribution<int> gen(ps.begin(), ps.end());
+    return data[gen(g)];
   }
 
   board rot(const board&, int);
   board mov(const board&, int);
   std::vector<std::pair<int, int>> hole(const board&);
-  void inp(board &, const std::vector<std::pair<int, double>>&);
+  template<class Gen>
+  void inp(board &b, const std::vector<int>& data, const std::vector<double>& l, Gen& g);
   int score(const board&);
   bool over(const board&);
  
@@ -51,7 +38,8 @@ namespace taas {
 
     board b;
     int score;
-    bool over, moved;    
+    bool over, moved;
+    std::mt19937 g;
   };
     
   class API : public Local {
