@@ -239,6 +239,7 @@ int guess(taas::board& b, Ev_p ev, int n=4) {
       }
     }
   }
+  assert(dit != -1);
   return dir;
 }
  
@@ -270,8 +271,8 @@ void addgene(Ev_p a, std::vector<Ev_p>& list, std::set<std::uint64_t>& hash){
   }
 }
 
-void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w, const int score_sum) {
-  std::vector<std::pair<Ev_p, double> >gene;
+void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w) {
+  std::vector<std::pair<Ev_p, double> > gene;
 
   for(size_t i = 0; i < g.size(); i++) {
     gene.push_back(std::make_pair(g[i], w[i]));
@@ -283,24 +284,25 @@ void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w, const int
     });
 
   for(int i = 0; i < 3; i++) {
-    std::cout << "score: " << gene[i].second * score_sum << "\tEV: " << ev_show(gene[i].first) << std::endl;
+    std::cout << "score: " << gene[i].second << "\tEV: " << ev_show(gene[i].first) << std::endl;
   }
 
   auto it = std::remove_if(gene.begin(), gene.end(), [](std::pair<Ev_p, double> x) {
       return x.second == 0;
     });  
 
-  auto minmax = std::minmax_element(gene.begin(), it, [](std::pair<Ev_p, double> x, std::pair<Ev_p, double> y) {
+  auto minmax = std::minmax_element(gene.begin(), it, [](std::pair<Ev_p, double> x,
+														 std::pair<Ev_p, double> y) {
       return x.second > y.second;
     });
   int size_sum = 0;
   std::for_each(gene.begin(), it, [&](std::pair<Ev_p, double> x){
       size_sum += ev_size(x.first);
     });
-  std::cout << "max: " << minmax.first->second * score_sum
-            << "\tmed: " << gene[(it - gene.begin()) / 2].second  * score_sum
+  std::cout << "max: " << minmax.first->second
+            << "\tmed: " << gene[(it - gene.begin()) / 2].second
             << "\tavg: " << score_sum / (it - gene.begin()) 
-            << "\tmin: " << minmax.second->second * score_sum
+            << "\tmin: " << minmax.second->second
             << "\tts: "  << size_sum * 1.0 / (it - gene.begin()) << std::endl;
   
 }
@@ -383,11 +385,7 @@ void grown(std::vector<Ev_p> evs={}) {
       }
     }
     
-    for(int i = 0; i < CHILD_MAX; i++) {
-      weight[i] /= score_sum;
-    }
-    
-    analyze(gene, weight, score_sum);
+    analyze(gene, weight);
   }
 }
 
