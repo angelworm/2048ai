@@ -296,16 +296,9 @@ double ev_eval_sub(Ev_p a, std::map<ev_name, double> ev_t) {
 }
 
 double ev_eval(Ev_p a, taas::board& b) {  
-  std::map<ev_name, double> t;
-  
-  int c = 0;
-  for(auto i: {ev_name::e_0, ev_name::e_1, ev_name::e_2, ev_name::e_3, ev_name::e_4, ev_name::e_5, ev_name::e_6, ev_name::e_7, ev_name::e_8, ev_name::e_9})
-	t[i] = c++;
-  c = 0;
-  for(auto i:{ev_name::e_b0, ev_name::e_b1, ev_name::e_b2, ev_name::e_b3, ev_name::e_b4, ev_name::e_b5, ev_name::e_b6, ev_name::e_b7, ev_name::e_b8, ev_name::e_b9, ev_name::e_b10, ev_name::e_b11, ev_name::e_b12, ev_name::e_b13, ev_name::e_b14, ev_name::e_b15}) {
-	t[i] = b[c / 4][c % 4];
-	c++;
-  }
+  std::map<ev_name, double> t {
+	{ev_name::e_0, 0}, {ev_name::e_1, 0}, {ev_name::e_2, 2}, {ev_name::e_3, 3}, {ev_name::e_4, 4}, {ev_name::e_5, 5}, {ev_name::e_6, 6}, {ev_name::e_7, 7}, {ev_name::e_8, 8}, {ev_name::e_9, 9}, {ev_name::e_b0, b[0][0]}, {ev_name::e_b1, b[0][1]}, {ev_name::e_b2, b[0][2]}, {ev_name::e_b3, b[0][3]}, {ev_name::e_b4, b[1][0]}, {ev_name::e_b5, b[1][1]}, {ev_name::e_b6, b[1][2]}, {ev_name::e_b7, b[1][3]}, {ev_name::e_b8, b[2][0]}, {ev_name::e_b9, b[2][1]}, {ev_name::e_b10, b[2][2]}, {ev_name::e_b11, b[2][3]}, {ev_name::e_b12, b[3][0]}, {ev_name::e_b13, b[3][1]}, {ev_name::e_b14, b[3][2]}, {ev_name::e_b15, b[3][3]}};
+
   for(auto pev: ev_primitive_table) {
 	double evv = pev.second(b);
 	assert(evv != -std::numeric_limits<double>::infinity());
