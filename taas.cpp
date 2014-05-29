@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdlib>
-
+#include <memory>
 #include "taas.h"
 
 static taas::board nullboard{{{{0,0,0,0}}, {{0,0,0,0}}, {{0,0,0,0}}, {{0,0,0,0}}}};
@@ -46,8 +46,9 @@ board taas::rot(const board& b, int d) {
   return b;
 }
 
-board movL(const board& b) {
+std::pair<board, int> movL(const board& b) {
   board ret = nullboard;
+  int score_inc = 0;
   for(int y=0; y < 4; y++) {
     int ml = 0;
     for(int x = ml; x < 4; x++) {
@@ -57,6 +58,7 @@ board movL(const board& b) {
         ret[y][ml] = b[y][x];
       } else if(ret[y][ml] == b[y][x]) {
         ret[y][ml] = b[y][x] * 2;
+		score_inc += ret[y][ml];
         ml++;
       } else {
         ret[y][ml+1] = b[y][x];
@@ -64,10 +66,10 @@ board movL(const board& b) {
       }
     }
   }
-  return ret;
+  return std::make_pair(ret, score_inc);
 }
 
-board taas::mov(const board& b, const int d) {
+std::pair<board, int> mov_score(const board& b, const int d) {
   int l,r;
   switch(d) {
   case 0: l = 1; r = 3; break;
@@ -75,9 +77,13 @@ board taas::mov(const board& b, const int d) {
   case 2: l = 3; r = 1; break;
   case 3: l = 0; r = 0; break;
   }
-  board b2 = rot(b, r);
-  b2 = movL(b2);
-  return rot(b2, l);
+  auto b2 = movL(rot(b, r));
+  b2.first = rot(b2.first, l);
+  return b2;
+}
+
+board taas::mov(const board& b, const int d) {
+  return mov_score(b, d).first;
 }
 
 std::vector<std::pair<int, int>> taas::hole(const board& b) {
@@ -152,11 +158,12 @@ bool taas::Local::move(int d) {
   auto v = {2, 4};
   auto p = {0.9, 0.1};
 
-  this->b = taas::mov(this->b, d);
+  auto b = mov_score(this->b, d);
+  this->b = b.first;
+  this->score = b.second;
   this->moved = (this->b != bb);
 
   inp(this->b, v, p, this->g);
   this->over  = taas::over(this->b);
-  this->score = taas::score(this->b);
   return this->moved;
 }
