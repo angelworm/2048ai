@@ -15,9 +15,10 @@ namespace taas {
     return data[gen(g)];
   }
 
-  board rot(const board&, int);
-  board mov(const board&, int);
-  std::vector<std::pair<int, int>> hole(const board&);
+  void rot(const board&, board&, const int);
+  int mov(const board&, board&, const int );
+  std::vector<std::pair<int, int> > hole(const board&);
+
   template<class Gen>
   void inp(board &b, const std::vector<int>& data, const std::vector<double>& l, Gen& g);
   int score(const board&);
@@ -38,7 +39,7 @@ namespace taas {
 
     board b;
     int score = 0;
-    bool over = false, moved = false;
+    bool over, moved;
     std::mt19937 g;
   };
 }

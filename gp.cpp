@@ -102,8 +102,9 @@ double ev_step_sub(taas::board &b) {
 
 double ev_step(taas::board &b) {
   int ret = 0;
+  taas::board br;
   for(int i = 0; i < 4; i++) {
-	taas::board br = taas::rot(b, i);
+	taas::rot(b, br, i);
 	ret = std::fmax(ret, ev_step_sub(br));
 	ev_step_sub_board_rev(br);
 	ret = std::fmax(ret, ev_step_sub(br));
@@ -350,7 +351,8 @@ double guessN(taas::board &b1, Ev_p evf, int n=4, bool player=true, double a = -
     
   if(player) {
     for(auto d:{0,1,2,3}) {
-      taas::board b2 = taas::mov(b1, d);
+      taas::board b2; 
+	  taas::mov(b1, b2, d);
       double atmp = guessN(b2, evf, n-1, not player, a, b);
       a = std::fmax(a, atmp);
       if(a >= b)
@@ -378,7 +380,8 @@ int guess(taas::board& b, Ev_p ev, int n=4) {
   int dir = -1;
 # pragma omp parallel for
   for(int i = 0; i < 4; i++) {
-    taas::board b2 = taas::mov(b, i);
+    taas::board b2;
+	taas::mov(b, b2, i);
     if(b2 != b) {
       double scoret = guessN(b2, ev, n, false);
 #     pragma omp critical

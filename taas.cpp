@@ -2,88 +2,90 @@
 #include <cmath>
 #include <cstdlib>
 #include <memory>
+#include <cassert>
 #include "taas.h"
 
 static taas::board nullboard{{{{0,0,0,0}}, {{0,0,0,0}}, {{0,0,0,0}}, {{0,0,0,0}}}};
 
 using namespace taas;
 
-board rotC1(const board& b) {
-  auto ret = nullboard;
+void rotC0(const board& b, board& ret) {
+  ret = b;
+}
+
+void rotC1(const board& b, board& ret) {
   for(int y = 0; y < 4; y++) {
     for(int x = 0; x < 4; x++) {
       ret[x][3-y] = b[y][x];
     }
   }
-  return ret;
 }
-board rotC2(const board& b) {
-  auto ret = nullboard;
+void rotC2(const board& b, board& ret) {
   for(int y = 0; y < 4; y++) {
     for(int x = 0; x < 4; x++) {
       ret[3-y][3-x] = b[y][x];
     }
   }
-  return ret;
 }
-board rotC3(const board& b) {
-  auto ret = nullboard;
+void rotC3(const board& b, board& ret) {
   for(int y = 0; y < 4; y++) {
     for(int x = 0; x < 4; x++) {
       ret[3-x][y] = b[y][x];
     }
   }
-  return ret;
 }
 
-board taas::rot(const board& b, int d) {
+void taas::rot(const board& b, board &ret, const int d) {
   switch(d) {
-  case 0: return b;
-  case 1: return rotC1(b);
-  case 2: return rotC2(b);
-  case 3: return rotC3(b);
+  case 0: return rotC0(b, ret);
+  case 1: return rotC1(b, ret);
+  case 2: return rotC2(b, ret);
+  case 3: return rotC3(b, ret);
+  default:
+	assert(0 <= d and d <= 3);
   }
-  return b;
 }
 
-std::pair<board, int> movL(const board& b) {
-  board ret = nullboard;
+int movL(const board& b, board& out) {
   int score_inc = 0;
   for(int y=0; y < 4; y++) {
     int ml = 0;
-    for(int x = ml; x < 4; x++) {
+    for(int x = 0; x < 4; x++) {
       if(b[y][x] == 0) {
         // n.t.d
-      } else if(ret[y][ml] == 0) {
-        ret[y][ml] = b[y][x];
-      } else if(ret[y][ml] == b[y][x]) {
-        ret[y][ml] = b[y][x] * 2;
-		score_inc += ret[y][ml];
+      } else if(out[y][ml] == 0) {
+        out[y][ml] = b[y][x];
+      } else if(out[y][ml] == b[y][x]) {
+        out[y][ml] = b[y][x] * 2;
+		score_inc += out[y][ml];
         ml++;
       } else {
-        ret[y][ml+1] = b[y][x];
+        out[y][ml+1] = b[y][x];
         ml++;
       }
     }
   }
-  return std::make_pair(ret, score_inc);
+  return score_inc;
 }
 
-std::pair<board, int> mov_score(const board& b, const int d) {
+int taas::mov(const board& b, board& ret, const int d) {
   int l,r;
+  auto b2(nullboard);
+  auto b3(nullboard);
+
   switch(d) {
   case 0: l = 1; r = 3; break;
   case 1: l = 2; r = 2; break;
   case 2: l = 3; r = 1; break;
   case 3: l = 0; r = 0; break;
+  default:
+	assert(0 <= d and d <= 3);
+	l = -1; r = -1;
   }
-  auto b2 = movL(rot(b, r));
-  b2.first = rot(b2.first, l);
-  return b2;
-}
-
-board taas::mov(const board& b, const int d) {
-  return mov_score(b, d).first;
+  rot(b, b2, r);
+  int score_inc = movL(b2, b3);
+  rot(b3, ret, l);
+  return score_inc;
 }
 
 std::vector<std::pair<int, int>> taas::hole(const board& b) {
@@ -158,12 +160,10 @@ bool taas::Local::move(int d) {
   auto v = {2, 4};
   auto p = {0.9, 0.1};
 
-  auto b = mov_score(this->b, d);
-  this->b = b.first;
-  this->score = b.second;
+  this->score += taas::mov(this->b, this->b, d);
   this->moved = (this->b != bb);
 
   inp(this->b, v, p, this->g);
-  this->over  = taas::over(this->b);
+  this->over = taas::over(this->b);
   return this->moved;
 }
