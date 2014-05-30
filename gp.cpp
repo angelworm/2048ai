@@ -13,6 +13,8 @@
 #include <cstdint>
 #include <functional>
 #include <getopt.h>
+#include <unordered_map>
+#include <sstream>
 
 #include "taas.h"
 
@@ -31,6 +33,15 @@ enum class ev_name{
 static const std::vector<std::string> ev_name_str = {
   "e_0", "e_1", "e_2", "e_3", "e_4", "e_5", "e_6", "e_7", "e_8", "e_9", "e_b0", "e_b1", "e_b2", "e_b3", "e_b4", "e_b5", "e_b6", "e_b7", "e_b8", "e_b9", "e_b10", "e_b11", "e_b12", "e_b13", "e_b14", "e_b15", "ev_score", "ev_sclg", "ev_max", "ev_cm", "ev_cm_max", "ev_step", "ev_hole", "ev_eq", "ev_di", "e_log", "e_abs", "e_po2", "e_mul", "e_add", "e_sub", "e_div"
 };
+
+namespace std {
+  template<>
+  struct hash<ev_name>{
+	size_t operator()(const ev_name& e) const {
+	  return static_cast<size_t>(e);
+	}
+  };
+}
 
 using score = double;
 
@@ -270,7 +281,9 @@ std::array<Ev_p, 2> ev_mut(Ev_p a, Gen& g) {
   return {{ev_inp(a, ev_select(b, bi), ai), ev_inp(b, ev_select(a, ai), bi)}};
 }
 
-double ev_eval_sub(Ev_p a, std::map<ev_name, double> ev_t) {
+using ev_env = std::unordered_map<ev_name, double>;
+
+double ev_eval_sub(Ev_p a, ev_env& ev_t) {
   double v;
   switch(a->name) {
   case ev_name::e_0: case ev_name::e_1: case ev_name::e_2: case ev_name::e_3: case ev_name::e_4: case ev_name::e_5: case ev_name::e_6: case ev_name::e_7: case ev_name::e_8: case ev_name::e_9:
@@ -298,7 +311,7 @@ double ev_eval_sub(Ev_p a, std::map<ev_name, double> ev_t) {
 }
 
 double ev_eval(Ev_p a, taas::board& b) {  
-  std::map<ev_name, double> t {
+  ev_env t {
 	{ev_name::e_0, 0}, {ev_name::e_1, 0}, {ev_name::e_2, 2}, {ev_name::e_3, 3}, {ev_name::e_4, 4}, {ev_name::e_5, 5}, {ev_name::e_6, 6}, {ev_name::e_7, 7}, {ev_name::e_8, 8}, {ev_name::e_9, 9}, {ev_name::e_b0, b[0][0]}, {ev_name::e_b1, b[0][1]}, {ev_name::e_b2, b[0][2]}, {ev_name::e_b3, b[0][3]}, {ev_name::e_b4, b[1][0]}, {ev_name::e_b5, b[1][1]}, {ev_name::e_b6, b[1][2]}, {ev_name::e_b7, b[1][3]}, {ev_name::e_b8, b[2][0]}, {ev_name::e_b9, b[2][1]}, {ev_name::e_b10, b[2][2]}, {ev_name::e_b11, b[2][3]}, {ev_name::e_b12, b[3][0]}, {ev_name::e_b13, b[3][1]}, {ev_name::e_b14, b[3][2]}, {ev_name::e_b15, b[3][3]}};
 
   for(auto pev: ev_primitive_table) {
@@ -316,6 +329,52 @@ std::string ev_show(Ev_p a) {
     ret += " " + ev_show(i);
   }
   return ret + ")";
+}
+ 
+ev_name ev_parse_tok(std::string::const_iterator& begin, std::string::const_iterator end) {
+  assert(*begin != '(');
+  auto head = begin;
+  while(begin != end and *begin != ' ' and *begin != ')' and *begin != '(') begin++;
+
+  std::string name(head, begin);
+
+  for(size_t i = 0; i < ev_name_str.size(); i++) {
+	if(ev_name_str[i] == name) {
+	  return static_cast<ev_name>(i);
+	}
+  }
+  throw std::runtime_error(std::string("no token: ") + name);
+}
+
+Ev_p ev_parse_brak(std::string::const_iterator& begin, std::string::const_iterator end) {
+  Ev_p ret = std::make_shared<Ev>(Ev());
+  if(*begin != '(') {
+	std::stringstream ss;
+	ss << "parse error at: " << std::string(begin, end);
+	throw std::runtime_error(ss.str());
+  }
+
+  begin++;
+  ret->name = ev_parse_tok(begin, end);
+
+  while(begin != end and *begin == ' ') {
+	begin++;
+	ret->ch.push_back(ev_parse_brak(begin, end));
+  }
+  
+  if(begin == end or *begin != ')') {
+	std::stringstream ss;
+	ss << "parse error at: " << std::string(begin, end);
+	throw std::runtime_error(ss.str());
+  } else {
+	begin++;
+  }
+  return ret;
+}
+
+Ev_p ev_parse(const std::string& str) {
+  auto begin = str.cbegin();
+  return ev_parse_brak(begin, str.cend());
 }
 
 std::uint64_t ev_hash(Ev_p a) {
@@ -344,7 +403,7 @@ std::uint64_t ev_hash(Ev_p a) {
   }
   return ret ^ tmp;
 }
- 
+
 double guessN(taas::board &b1, Ev_p evf, int n=4, bool player=true, double a = -std::numeric_limits<double>::infinity(), double b=std::numeric_limits<double>::infinity()) {
   if(n == 0)
     return ev_eval(evf, b1);
@@ -574,12 +633,8 @@ int main(int argc, char *argv[]) {
 	break;
   case 2:
 	{
-	  taas::board b = {{{{0,2,2,0}}, {{2,2,0,0}}, {{4,0,0,0}}, {{4,0,0,0}}}}, bt;
-	  taas::pb(b);
-	  std::cout << std::endl; taas::mov(b, bt, 0); taas::pb(bt);
-	  std::cout << std::endl; taas::mov(b, bt, 1); taas::pb(bt);
-	  std::cout << std::endl; taas::mov(b, bt, 2); taas::pb(bt);
-	  std::cout << std::endl; taas::mov(b, bt, 3); taas::pb(bt);
+	  std::string s("(e_mul (e_log (e_abs (e_b7))) (e_add (e_po2 (e_add (e_sub (e_add (e_abs (e_div (e_po2 (e_7)) (e_add (e_add (e_log (e_0)) (e_po2 (e_abs (e_div (e_1) (e_div (e_log (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_3))))))) (e_b12)))))) (e_add (e_po2 (e_2)) (e_log (e_abs (e_mul (e_sub (e_9) (e_b11)) (e_mul (e_po2 (e_log (e_b4))) (e_b8))))))))) (e_b3)) (e_po2 (e_div (e_b13) (e_mul (e_sub (e_add (e_add (e_log (e_div (e_log (e_b11)) (e_8))) (e_log (e_sub (e_b1) (e_sub (e_9) (e_b1))))) (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_sub (e_po2 (e_add (e_po2 (e_add (e_sub (e_add (e_abs (e_div (e_po2 (e_7)) (e_add (e_add (e_log (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_3))))))) (e_po2 (e_div (e_abs (e_0)) (e_mul (e_div (e_b5) (e_div (e_log (e_b8)) (e_div (e_add (e_6) (e_b9)) (e_mul (e_div (e_abs (e_0)) (e_b6)) (e_b3))))) (e_mul (e_log (e_add (e_abs (e_div (e_po2 (e_7)) (e_add (e_add (e_log (e_po2 (e_po2 (e_0)))) (e_po2 (e_sub (e_abs (e_3)) (e_mul (e_po2 (e_b3)) (e_add (e_log (e_log (e_sub (e_abs (e_po2 (e_sub (e_add (e_5) (e_b7)) (e_b4)))) (e_mul (e_b2) (e_mul (e_b5) (e_po2 (e_7))))))) (e_b13)))))) (e_add (e_po2 (e_2)) (e_log (e_abs (e_add (e_mul (e_b2) (e_b15)) (e_b15)))))))) (e_b3))) (e_div (e_1) (e_b15))))))) (e_add (e_po2 (e_2)) (e_log (e_abs (e_mul (e_sub (e_9) (e_div (e_abs (e_log (e_log (e_po2 (e_div (e_b14) (e_abs (e_0))))))) (e_b14))) (e_mul (e_po2 (e_log (e_po2 (e_po2 (e_sub (e_b10) (e_4)))))) (e_b8))))))))) (e_b3)) (e_po2 (e_div (e_div (e_1) (e_b15)) (e_sub (e_abs (e_abs (e_po2 (e_8)))) (e_b5))))) (e_b11))) (e_8))) (e_mul (e_po2 (e_sub (e_b12) (e_b8))) (e_abs (e_po2 (e_sub (e_add (e_abs (e_div (e_po2 (e_7)) (e_add (e_add (e_log (e_po2 (e_po2 (e_5)))) (e_po2 (e_sub (e_abs (e_log (e_b0))) (e_mul (e_po2 (e_b3)) (e_add (e_log (e_log (e_sub (e_abs (e_po2 (e_sub (e_add (e_5) (e_b7)) (e_b4)))) (e_po2 (e_b3))))) (e_b13)))))) (e_add (e_po2 (e_2)) (e_log (e_abs (e_add (e_log (e_mul (e_mul (e_abs (e_div (e_div (e_mul (e_mul (e_div (e_mul (e_2) (e_b3)) (e_8)) (e_b7)) (e_b15)) (e_add (e_b4) (e_b10))) (e_b12))) (e_po2 (e_abs (e_0)))) (e_mul (e_div (e_abs (e_0)) (e_mul (e_sub (e_abs (e_abs (e_add (e_po2 (e_sub (e_b10) (e_abs (e_log (e_po2 (e_abs (e_div (e_0) (e_b8)))))))) (e_mul (e_div (e_abs (e_0)) (e_mul (e_sub (e_abs (e_abs (e_add (e_po2 (e_sub (e_b10) (e_4))) (e_8)))) (e_b1)) (e_mul (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_po2 (e_po2 (e_po2 (e_3))))))))) (e_log (e_po2 (e_po2 (e_po2 (e_3)))))))) (e_po2 (e_log (e_add (e_mul (e_b14) (e_b3)) (e_log (e_mul (e_mul (e_abs (e_div (e_div (e_mul (e_mul (e_div (e_mul (e_2) (e_b3)) (e_mul (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_7)))))) (e_div (e_1) (e_b15)))) (e_b7)) (e_b15)) (e_add (e_b4) (e_b10))) (e_b12))) (e_b6)) (e_mul (e_b14) (e_sub (e_b1) (e_add (e_abs (e_2)) (e_div (e_div (e_b12) (e_b14)) (e_b11)))))))))))))) (e_b1)) (e_mul (e_abs (e_5)) (e_div (e_1) (e_b15))))) (e_po2 (e_sub (e_add (e_abs (e_div (e_po2 (e_7)) (e_add (e_add (e_log (e_b12)) (e_po2 (e_div (e_abs (e_0)) (e_mul (e_sub (e_b14) (e_b2)) (e_log (e_b3)))))) (e_add (e_po2 (e_2)) (e_log (e_abs (e_mul (e_sub (e_abs (e_sub (e_abs (e_abs (e_add (e_po2 (e_sub (e_7) (e_4))) (e_8)))) (e_4))) (e_b1)) (e_mul (e_po2 (e_b14)) (e_b8))))))))) (e_b3)) (e_po2 (e_div (e_mul (e_log (e_abs (e_b7))) (e_add (e_po2 (e_add (e_sub (e_add (e_abs (e_div (e_po2 (e_7)) (e_add (e_add (e_mul (e_div (e_abs (e_0)) (e_mul (e_sub (e_abs (e_abs (e_add (e_po2 (e_abs (e_0))) (e_mul (e_div (e_abs (e_0)) (e_mul (e_sub (e_abs (e_abs (e_add (e_po2 (e_sub (e_b10) (e_4))) (e_8)))) (e_b1)) (e_mul (e_po2 (e_3)) (e_div (e_1) (e_b15))))) (e_po2 (e_log (e_add (e_mul (e_b14) (e_b11)) (e_log (e_mul (e_mul (e_abs (e_div (e_div (e_b12) (e_add (e_b4) (e_b10))) (e_b12))) (e_b6)) (e_add (e_add (e_b15) (e_add (e_sub (e_b10) (e_mul (e_b9) (e_b10))) (e_mul (e_add (e_add (e_log (e_div (e_div (e_b2) (e_abs (e_b3))) (e_mul (e_b15) (e_2)))) (e_mul (e_b2) (e_sub (e_b1) (e_abs (e_abs (e_log (e_po2 (e_b14)))))))) (e_div (e_sub (e_b3) (e_b6)) (e_abs (e_b11)))) (e_div (e_abs (e_0)) (e_mul (e_sub (e_abs (e_b11)) (e_b1)) (e_mul (e_po2 (e_div (e_div (e_b12) (e_add (e_abs (e_2)) (e_div (e_div (e_b12) (e_b14)) (e_b11)))) (e_b11))) (e_div (e_1) (e_log (e_b8))))))))) (e_div (e_log (e_log (e_log (e_7)))) (e_abs (e_mul (e_3) (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_3))))))))))))))))))) (e_b1)) (e_mul (e_po2 (e_log (e_po2 (e_po2 (e_add (e_add (e_log (e_0)) (e_po2 (e_div (e_abs (e_0)) (e_mul (e_sub (e_b14) (e_b14)) (e_mul (e_po2 (e_div (e_b14) (e_abs (e_0)))) (e_b14)))))) (e_add (e_log (e_po2 (e_mul (e_9) (e_4)))) (e_log (e_abs (e_mul (e_sub (e_9) (e_b1)) (e_mul (e_po2 (e_log (e_po2 (e_mul (e_9) (e_b2))))) (e_b8))))))))))) (e_div (e_1) (e_b15))))) (e_po2 (e_log (e_b10)))) (e_po2 (e_div (e_abs (e_div (e_div (e_b0) (e_b14)) (e_b11))) (e_9)))) (e_add (e_po2 (e_2)) (e_log (e_abs (e_mul (e_log (e_7)) (e_mul (e_po2 (e_abs (e_b11))) (e_b8))))))))) (e_b3)) (e_abs (e_add (e_abs (e_div (e_po2 (e_7)) (e_add (e_add (e_mul (e_div (e_abs (e_0)) (e_mul (e_sub (e_po2 (e_abs (e_0))) (e_b1)) (e_mul (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_3)))))) (e_div (e_1) (e_b15))))) (e_po2 (e_div (e_log (e_log (e_log (e_7)))) (e_abs (e_mul (e_3) (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_sub (e_mul (e_div (e_abs (e_0)) (e_mul (e_sub (e_abs (e_abs (e_add (e_po2 (e_po2 (e_div (e_b13) (e_sub (e_8) (e_b5))))) (e_po2 (e_div (e_sub (e_div (e_po2 (e_7)) (e_add (e_div (e_1) (e_b15)) (e_sub (e_b10) (e_b3)))) (e_sub (e_abs (e_abs (e_add (e_mul (e_b15) (e_po2 (e_0))) (e_po2 (e_div (e_sub (e_9) (e_sub (e_b11) (e_div (e_add (e_2) (e_sub (e_abs (e_sub (e_add (e_log (e_po2 (e_b2))) (e_div (e_b12) (e_b2))) (e_b0))) (e_add (e_mul (e_sub (e_sub (e_b0) (e_po2 (e_b1))) (e_b1)) (e_mul (e_po2 (e_log (e_po2 (e_po2 (e_div (e_sub (e_b5) (e_sub (e_b11) (e_log (e_log (e_7))))) (e_sub (e_sub (e_b10) (e_log (e_add (e_0) (e_0)))) (e_b15))))))) (e_b8))) (e_add (e_add (e_log (e_add (e_2) (e_div (e_mul (e_b5) (e_abs (e_po2 (e_po2 (e_po2 (e_4)))))) (e_add (e_0) (e_div (e_b14) (e_div (e_1) (e_b15))))))) (e_po2 (e_b5))) (e_abs (e_4)))))) (e_0)))) (e_sub (e_abs (e_8)) (e_b15))))))) (e_b8))) (e_sub (e_b3) (e_b15))))))) (e_sub (e_mul (e_div (e_abs (e_0)) (e_mul (e_log (e_po2 (e_b12))) (e_7))) (e_b3)) (e_add (e_b3) (e_log (e_b7))))) (e_b2))) (e_po2 (e_abs (e_div (e_1) (e_div (e_log (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_3))))))) (e_b12)))))) (e_add (e_abs (e_2)) (e_div (e_b3) (e_b11)))))))))))))) (e_b12)) (e_add (e_po2 (e_2)) (e_log (e_abs (e_mul (e_log (e_7)) (e_mul (e_add (e_po2 (e_log (e_po2 (e_po2 (e_abs (e_b11)))))) (e_log (e_sub (e_b1) (e_add (e_abs (e_2)) (e_b13))))) (e_b8))))))))) (e_b3)))) (e_b11))) (e_8))) (e_mul (e_po2 (e_div (e_abs (e_0)) (e_log (e_sub (e_po2 (e_div (e_b14) (e_abs (e_0)))) (e_b7))))) (e_div (e_1) (e_b15)))))))))) (e_b15)))))))) (e_b3)) (e_po2 (e_po2 (e_b3)))))))))))))) (e_8)) (e_div (e_po2 (e_9)) (e_add (e_mul (e_b14) (e_b11)) (e_div (e_abs (e_0)) (e_mul (e_sub (e_b14) (e_mul (e_po2 (e_sub (e_b10) (e_b3))) (e_div (e_1) (e_sub (e_mul (e_div (e_abs (e_0)) (e_mul (e_sub (e_abs (e_add (e_log (e_div (e_div (e_log (e_abs (e_b11))) (e_abs (e_b3))) (e_mul (e_b15) (e_2)))) (e_mul (e_b2) (e_sub (e_b1) (e_abs (e_abs (e_log (e_po2 (e_b14))))))))) (e_b1)) (e_mul (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_3)))))) (e_div (e_1) (e_add (e_b12) (e_b15)))))) (e_po2 (e_log (e_log (e_abs (e_b7)))))) (e_add (e_abs (e_2)) (e_div (e_mul (e_b5) (e_b2)) (e_b11))))))) (e_mul (e_po2 (e_sub (e_b10) (e_b3))) (e_div (e_1) (e_sub (e_mul (e_div (e_abs (e_0)) (e_mul (e_sub (e_sub (e_b1) (e_abs (e_log (e_div (e_1) (e_b15))))) (e_b1)) (e_mul (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_3)))))) (e_div (e_1) (e_b15))))) (e_po2 (e_log (e_div (e_add (e_2) (e_po2 (e_po2 (e_div (e_mul (e_b5) (e_abs (e_mul (e_mul (e_sub (e_b6) (e_div (e_log (e_3)) (e_sub (e_b14) (e_b15)))) (e_b12)) (e_add (e_div (e_b12) (e_b2)) (e_b3))))) (e_add (e_0) (e_div (e_b14) (e_div (e_1) (e_b15)))))))) (e_abs (e_abs (e_add (e_abs (e_b11)) (e_abs (e_sub (e_log (e_b3)) (e_b1)))))))))) (e_add (e_abs (e_2)) (e_div (e_po2 (e_9)) (e_mul (e_div (e_abs (e_0)) (e_mul (e_sub (e_abs (e_abs (e_add (e_po2 (e_sub (e_b10) (e_4))) (e_sub (e_abs (e_sub (e_add (e_log (e_po2 (e_log (e_b4)))) (e_div (e_b12) (e_b2))) (e_b6))) (e_b5))))) (e_b1)) (e_mul (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_3)))))) (e_div (e_1) (e_b15))))) (e_po2 (e_log (e_add (e_mul (e_b14) (e_b11)) (e_log (e_mul (e_mul (e_abs (e_div (e_div (e_mul (e_mul (e_div (e_mul (e_2) (e_b3)) (e_b12)) (e_b7)) (e_add (e_abs (e_0)) (e_add (e_add (e_log (e_div (e_add (e_2) (e_sub (e_abs (e_mul (e_b15) (e_po2 (e_0)))) (e_add (e_po2 (e_b4)) (e_add (e_add (e_po2 (e_log (e_add (e_mul (e_b14) (e_b11)) (e_log (e_mul (e_mul (e_abs (e_mul (e_sub (e_9) (e_b1)) (e_mul (e_po2 (e_po2 (e_9))) (e_b8)))) (e_b6)) (e_add (e_add (e_b15) (e_add (e_sub (e_b10) (e_mul (e_b9) (e_b10))) (e_mul (e_add (e_add (e_log (e_div (e_div (e_b2) (e_abs (e_b3))) (e_mul (e_b0) (e_2)))) (e_mul (e_b2) (e_sub (e_b1) (e_abs (e_abs (e_log (e_po2 (e_b14)))))))) (e_div (e_sub (e_b3) (e_b6)) (e_abs (e_b11)))) (e_div (e_abs (e_0)) (e_7))))) (e_div (e_log (e_log (e_log (e_7)))) (e_abs (e_mul (e_3) (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_3))))))))))))))) (e_log (e_sub (e_b1) (e_div (e_b13) (e_5))))) (e_abs (e_4)))))) (e_8))) (e_log (e_sub (e_b1) (e_div (e_b13) (e_b12))))) (e_abs (e_b10))))) (e_add (e_po2 (e_2)) (e_b10))) (e_b12))) (e_b6)) (e_add (e_add (e_b15) (e_add (e_b14) (e_mul (e_add (e_add (e_log (e_div (e_div (e_b2) (e_abs (e_b3))) (e_mul (e_b15) (e_2)))) (e_mul (e_abs (e_b6)) (e_sub (e_b1) (e_abs (e_div (e_log (e_b8)) (e_div (e_b3) (e_b14))))))) (e_div (e_b14) (e_abs (e_0)))) (e_div (e_abs (e_0)) (e_div (e_sub (e_log (e_add (e_b0) (e_log (e_div (e_5) (e_mul (e_b15) (e_log (e_b4))))))) (e_6)) (e_0)))))) (e_div (e_log (e_log (e_log (e_div (e_add (e_6) (e_b9)) (e_mul (e_div (e_abs (e_0)) (e_mul (e_sub (e_abs (e_abs (e_add (e_div (e_log (e_mul (e_6) (e_log (e_div (e_add (e_po2 (e_mul (e_log (e_mul (e_div (e_sub (e_add (e_abs (e_div (e_po2 (e_b1)) (e_add (e_b11) (e_add (e_po2 (e_2)) (e_log (e_abs (e_mul (e_log (e_7)) (e_mul (e_po2 (e_log (e_po2 (e_sub (e_add (e_abs (e_mul (e_b6) (e_9))) (e_2)) (e_0))))) (e_b8))))))))) (e_b3)) (e_b14)) (e_abs (e_b2))) (e_b2))) (e_abs (e_abs (e_sub (e_abs (e_b11)) (e_0)))))) (e_b13)) (e_b15))))) (e_abs (e_abs (e_po2 (e_abs (e_3)))))) (e_8)))) (e_b1)) (e_2))) (e_b3)))))) (e_abs (e_mul (e_b1) (e_po2 (e_log (e_po2 (e_po2 (e_po2 (e_3))))))))))))))))))))))))))))) (e_b11))) (e_8)))");
+	  assert(ev_show(ev_parse(s)) == s);
 	}
 	break;
   }
