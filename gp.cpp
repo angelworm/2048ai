@@ -12,6 +12,7 @@
 #include <set>
 #include <cstdint>
 #include <functional>
+#include <getopt.h>
 
 #include "taas.h"
 
@@ -541,7 +542,43 @@ void grown(std::vector<Ev_p> evs={}) {
 }
 
 int main(int argc, char *argv[]) {
+  int mode = 0, result = -1;
   srand(time(NULL));
-  grown();
+
+  while((result=getopt(argc,argv,"hst")) != -1){
+    switch(result){
+	case 's': // single run mode
+	  mode = 1;
+	  break;
+	case 't': // single run mode
+	  mode = 2;
+	  break;
+    case 'h':
+    case '?':
+	  std::cout << "useage: gp [opt]" << std::endl;
+	  std::cout << "\t-h: this option" << std::endl;
+	  std::cout << "\t-s: single run mode(default: grown mode)" << std::endl;
+      return -1;
+    }
+  }
+
+  switch(mode) {
+  case 0:
+	grown();
+	break;
+  case 1:
+	run2048(ev_gen());
+	break;
+  case 2:
+	{
+	  taas::board b = {{{{0,2,2,0}}, {{2,2,0,0}}, {{4,0,0,0}}, {{4,0,0,0}}}}, bt;
+	  taas::pb(b);
+	  std::cout << std::endl; taas::mov(b, bt, 0); taas::pb(bt);
+	  std::cout << std::endl; taas::mov(b, bt, 1); taas::pb(bt);
+	  std::cout << std::endl; taas::mov(b, bt, 2); taas::pb(bt);
+	  std::cout << std::endl; taas::mov(b, bt, 3); taas::pb(bt);
+	}
+	break;
+  }
   return 0;
 }
