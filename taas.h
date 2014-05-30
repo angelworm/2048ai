@@ -5,6 +5,8 @@
 #include <vector>
 #include <random>
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 
 namespace taas {
   using board = std::array<std::array<int, 4>, 4>;
@@ -41,6 +43,22 @@ namespace taas {
     int score = 0;
     bool over, moved;
     std::mt19937 g;
+  };
+}
+
+namespace std {
+  template<>
+  struct hash<taas::board>{
+	size_t operator()(const taas::board& b) const {
+	  uint64_t ret = 0;
+	  for(auto l:b) {
+		for(auto x:l) {
+		  ret <<= 4;
+		  ret += std::log2(x);
+		}
+	  }
+	  return std::hash<uint64_t>()(ret);
+	}
   };
 }
 
