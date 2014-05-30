@@ -585,12 +585,17 @@ void grown(std::vector<Ev_p> evs={}) {
       int score = 0;
       for(int j = 0; j < 10; j++) {
         scores[j] = run2048(gene2[i], false);
+		if(scores[j] == 0) break;
       }
 
-      std::sort(scores.begin(), scores.end(), [](int x,int y) {return x > y;});
-      for(int j = 0; j < 3; j++) score += scores[j];
-      score /= 3;
-      score_sum += score;
+	  if(std::any_of(scores.begin(), scores.end(),[](int x) {return x == 0;})) {
+		score = 0;
+	  } else {
+		std::sort(scores.begin(), scores.end(), [](int x,int y) {return x > y;});
+		for(int j = 0; j < 3; j++) score += scores[j];
+		score /= 3;
+	  }
+	  score_sum += score;
 
 #     pragma omp critical
       {
