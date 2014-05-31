@@ -526,6 +526,26 @@ void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w, const int
   
 }
 
+template<class Gen>
+Ev_p tournament(const std::vector<Ev_p>& list, const std::vector<double>& score,
+				const int n, Gen g) {
+  std::uniform_int_distribution<std::size_t> dis(0, list.size() -1);
+  std::unordered_set<std::size_t> selected;
+  Ev_p ret = nullptr;
+  int max_score = -1;
+  while(selected.size() < n) {
+	std::size_t i = dis(g);
+	if(selected.find(i) != selected.end()) 
+	  continue;
+	selected.insert(i);
+	if(max_score < score[i]) {
+	  max_score = score[i];
+	  ret = list[i];
+	}
+  }
+  return ret;
+}
+
 std::string logpath(const std::string& log_dir, int gen) {
   if(log_dir.empty()) {
 	return std::string("/dev/null");
