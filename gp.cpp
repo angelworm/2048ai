@@ -15,6 +15,7 @@
 #include <getopt.h>
 #include <unordered_map>
 #include <sstream>
+#include <fstream>
 
 #include "taas.h"
 
@@ -472,6 +473,11 @@ int run2048(Ev_p evf, bool show=true) {
 	 std::cout << e.what() << std::endl;
      return 0;
    }
+   if(show) {
+	 std::cout << std::endl;
+	 taas::pb(a.b);
+	 std::cout << "score:" << a.score << std::endl;
+   }
    return a.score;
 }
 
@@ -521,7 +527,15 @@ void analyze(const std::vector<Ev_p>& g, const std::vector<double>& w, const int
   
 }
 
-void grown(std::vector<Ev_p> evs={}) {
+std::string logpath(const std::string& log_dir, int gen) {
+  if(log_dir.empty()) {
+	return std::string("/dev/null");
+  } else {
+	return log_dir + "/" + std::to_string(gen) + ".csv";
+  }
+}
+
+void grown(std::vector<Ev_p> evs={}, const std::string log_dir = {}) {
   std::vector<Ev_p> gene;
   std::vector<double> weight;
   std::set<std::uint64_t> hashs;
@@ -530,6 +544,7 @@ void grown(std::vector<Ev_p> evs={}) {
 
   std::vector<int> act = {0, 1, 2};
   std::vector<double > act_w = {0.2, 0.75,  0.05};
+  bool dolog = not log_dir.empty();
 
   for(auto v:evs) {
     hashs.insert(ev_hash(v));
@@ -550,6 +565,8 @@ void grown(std::vector<Ev_p> evs={}) {
   for(int gen = 0; gen < 1000; gen++) {
     std::vector<Ev_p> gene2;
     std::set<std::uint64_t> hashs2;
+	std::string path = logpath(log_dir, gen); 
+	std::ofstream flog(path);
     
     std::cout << "***** " << gen << ":generating *****" << std::endl;
     
@@ -590,6 +607,7 @@ void grown(std::vector<Ev_p> evs={}) {
 
 	  if(std::any_of(scores.begin(), scores.end(),[](int x) {return x == 0;})) {
 		score = 0;
+		std::fill(scores.begin(), scores.end(), 0);
 	  } else {
 		std::sort(scores.begin(), scores.end(), [](int x,int y) {return x > y;});
 		for(int j = 0; j < 3; j++) score += scores[j];
@@ -601,6 +619,11 @@ void grown(std::vector<Ev_p> evs={}) {
       {
         gene.push_back(gene2[i]);
         weight.push_back(score);
+		
+		flog << ev_show(gene2[i]);
+		for(auto x:scores) 
+		  flog << "," << x;
+		flog << std::endl;
       }
     }
     
@@ -608,33 +631,59 @@ void grown(std::vector<Ev_p> evs={}) {
   }
 }
 
+std::vector<Ev_p> read_ev(const char* path) {
+  std::ifstream ifs(path);
+  std::string s;
+  std::vector<Ev_p> ret;
+
+  if(ifs.is_open()){
+	std::cerr << "no such file: " << path << std::endl;
+	throw std::runtime_error("file not found");
+  }
+  while(std::getline(ifs, s)){
+	ret.push_back(ev_parse(s));
+  }
+  return ret;
+}
+
 int main(int argc, char *argv[]) {
   int mode = 0, result = -1;
+  std::string output_dir;
+  std::vector<Ev_p> ev_log;
   srand(time(NULL));
 
-  while((result=getopt(argc,argv,"hst")) != -1){
+  while((result=getopt(argc,argv,"hstd:i:")) != -1){
     switch(result){
 	case 's': // single run mode
 	  mode = 1;
 	  break;
-	case 't': // single run mode
+	case 't': // unit test mode?
 	  mode = 2;
 	  break;
-    case 'h':
+	case 'd': // output directory
+	  output_dir = optarg;
+	  break;
+	case 'i': // gene file input
+	  ev_log = read_ev(optarg);
+	  break;
+	case 'h':
     case '?':
 	  std::cout << "useage: gp [opt]" << std::endl;
 	  std::cout << "\t-h: this option" << std::endl;
 	  std::cout << "\t-s: single run mode(default: grown mode)" << std::endl;
-      return -1;
+	  std::cout << "\t-t: test run mode(default: grown mode)" << std::endl;
+	  std::cout << "\t-d dir: generations writes into dir(default: none)" << std::endl;
+	  std::cout << "\t-i file: read genes files as seed" << std::endl;
+	  return -1;
     }
   }
 
   switch(mode) {
   case 0:
-	grown();
+	grown(ev_log, output_dir);
 	break;
   case 1:
-	run2048(ev_gen());
+	run2048(ev_parse("(e_add (e_po2 (ev_di)) (e_add (e_add (e_add (e_mul (e_log (e_sub (e_b14) (ev_di))) (e_mul (ev_eq) (e_b7))) (e_log (e_log (e_abs (e_log (e_po2 (e_po2 (e_abs (e_add (e_8) (ev_hole)))))))))) (e_po2 (e_sub (e_mul (ev_cm) (e_po2 (e_add (e_abs (e_abs (e_mul (e_mul (e_b11) (e_mul (ev_eq) (e_b3))) (ev_hole)))) (e_3)))) (ev_di)))) (ev_eq)))"));
 	break;
   case 2:
 	{
