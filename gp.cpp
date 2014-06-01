@@ -655,7 +655,7 @@ std::vector<Ev_p> read_ev(const char* path) {
   std::string s;
   std::vector<Ev_p> ret;
 
-  if(ifs.is_open()){
+  if(!ifs.is_open()){
 	std::cerr << "no such file: " << path << std::endl;
 	throw std::runtime_error("file not found");
   }
