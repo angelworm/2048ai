@@ -51,8 +51,8 @@ namespace std {
   struct hash<taas::board>{
 	size_t operator()(const taas::board& b) const {
 	  uint64_t ret = 0;
-	  for(auto l:b) {
-		for(auto x:l) {
+	  for(const auto& l:b) {
+		for(const auto& x:l) {
 		  ret <<= 4;
 		  ret += std::log2(x);
 		}

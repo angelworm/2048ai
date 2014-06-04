@@ -47,16 +47,16 @@ namespace std {
 
 using score = double;
 
-double ev_score(taas::board& b) {
+double ev_score(const taas::board& b) {
   return taas::score(b);
 }
 
-double ev_sclg(taas::board& b) {
+double ev_sclg(const taas::board& b) {
   double ret = 0;
-  for(auto l:b) {
-	for(auto x:l) {
-	  x = x == 0 ? 1 : x;
-	  double s = x * std::log(x) / std::log(2);
+  for(auto const& l:b) {
+	for(auto const& x:l) {
+	  int x2 = x == 0 ? 1 : x;
+	  double s = x * std::log(x2) / std::log(2);
 	  s = s == 0 ? 1 : s;
 	  ret += log(s) / std::log(2);
 	}
@@ -64,22 +64,22 @@ double ev_sclg(taas::board& b) {
   return ret;
 }
 
-double ev_max(taas::board &b) {
+double ev_max(const taas::board &b) {
   double ret = 0;
-  for(auto l:b) {
+  for(auto const& l:b) {
     ret= std::fmax(ret, *std::max_element(l.begin(), l.end()));
   }
   return ret;
 }
 
-double ev_cm(taas::board &b) {
+double ev_cm(const taas::board &b) {
   double max = ev_max(b);
-  for(auto bx:{b[0][0], b[3][0], b[0][3], b[3][3]})
+  for(auto const& bx:{b[0][0], b[3][0], b[0][3], b[3][3]})
 	if(bx == max) return 10;
   return 0;
 }
 
-double ev_cm_max(taas::board &b) {
+double ev_cm_max(const taas::board &b) {
   return ev_max(b) * ev_cm(b);
 }
 
@@ -90,12 +90,12 @@ void ev_step_sub_board_rev(taas::board &b) {
   }
 }
 
-double ev_step_sub(taas::board &b) {
+double ev_step_sub(const taas::board &b) {
   int bx = -1;
   int score = 0;
   
-  for(auto l:b) {
-	for(auto x:l) {
+  for(auto const& l:b) {
+	for(auto const& x:l) {
 	  if(bx == -1) {
 		// n.t.d
 	  } else if(bx == 0) {
@@ -113,7 +113,7 @@ double ev_step_sub(taas::board &b) {
   return score;
 }
 
-double ev_step(taas::board &b) {
+double ev_step(const taas::board &b) {
   int ret = 0;
   taas::board br;
   for(int i = 0; i < 4; i++) {
@@ -125,10 +125,10 @@ double ev_step(taas::board &b) {
   return ret;
 }
 
-double ev_hole(taas::board& b) {
+double ev_hole(const taas::board& b) {
   int r = 0;
-  for(auto l:b) {
-	for(auto x:l) {
+  for(auto const& l:b) {
+	for(auto const& x:l) {
 	  if(x == 0) {
 		r += 1;
 	  }
@@ -137,7 +137,7 @@ double ev_hole(taas::board& b) {
   return r;
 }
 
-double ev_eq(taas::board& b) {
+double ev_eq(const taas::board& b) {
   int r = 0;
   std::array<int, 4> lb = {-1, -1, -1, -1};
   for(int y = 0; y < 4; y++) {
@@ -156,7 +156,7 @@ double ev_eq(taas::board& b) {
   return r;
 }
 
-double ev_di(taas::board& b) {
+double ev_di(const taas::board& b) {
   int r = 0;
   std::array<int, 4> lb = {-1, -1, -1, -1};
   for(int y = 0; y < 4; y++) {
@@ -171,7 +171,7 @@ double ev_di(taas::board& b) {
   return r;
 }
 
-static std::map<ev_name, std::function<double(taas::board&)> > ev_primitive_table {
+static std::map<ev_name, std::function<double(const taas::board&)> > ev_primitive_table {
   {ev_name::ev_score, ev_score},
   {ev_name::ev_sclg, ev_sclg},
   {ev_name::ev_max, ev_max},
@@ -195,10 +195,10 @@ using Ev_p = std::shared_ptr<Ev>;
 Ev_p ev_gen() {
   Ev_p ret = std::make_shared<Ev>(Ev());
   std::vector<ev_name> g;
-  for(auto i: {ev_name::e_0, ev_name::e_1, ev_name::e_2, ev_name::e_3, ev_name::e_4, ev_name::e_5, ev_name::e_6, ev_name::e_7, ev_name::e_8, ev_name::e_9, ev_name::e_b0, ev_name::e_b1, ev_name::e_b2, ev_name::e_b3, ev_name::e_b4, ev_name::e_b5, ev_name::e_b6, ev_name::e_b7, ev_name::e_b8, ev_name::e_b9, ev_name::e_b10, ev_name::e_b11, ev_name::e_b12, ev_name::e_b13, ev_name::e_b14,ev_name::e_b15, ev_name::ev_score, ev_name::ev_sclg, ev_name::ev_max, ev_name::ev_cm, ev_name::ev_cm_max, ev_name::ev_step, ev_name::ev_hole, ev_name::ev_eq, ev_name::ev_di} )
+  for(auto const& i: {ev_name::e_0, ev_name::e_1, ev_name::e_2, ev_name::e_3, ev_name::e_4, ev_name::e_5, ev_name::e_6, ev_name::e_7, ev_name::e_8, ev_name::e_9, ev_name::e_b0, ev_name::e_b1, ev_name::e_b2, ev_name::e_b3, ev_name::e_b4, ev_name::e_b5, ev_name::e_b6, ev_name::e_b7, ev_name::e_b8, ev_name::e_b9, ev_name::e_b10, ev_name::e_b11, ev_name::e_b12, ev_name::e_b13, ev_name::e_b14,ev_name::e_b15, ev_name::ev_score, ev_name::ev_sclg, ev_name::ev_max, ev_name::ev_cm, ev_name::ev_cm_max, ev_name::ev_step, ev_name::ev_hole, ev_name::ev_eq, ev_name::ev_di} )
     g.push_back(i);
   for(int c = 0; c < 6; c++)
-    for(auto i: {ev_name::e_log, ev_name::e_abs, ev_name::e_po2, ev_name::e_mul, ev_name::e_add, ev_name::e_sub, ev_name::e_div} )
+    for(auto const& i: {ev_name::e_log, ev_name::e_abs, ev_name::e_po2, ev_name::e_mul, ev_name::e_add, ev_name::e_sub, ev_name::e_div} )
       g.push_back(i);
 
   ret->name = g[std::rand() % g.size()];
@@ -218,7 +218,7 @@ Ev_p ev_gen() {
 Ev_p ev_copy(Ev_p a) {
   Ev_p ret = std::make_shared<Ev>(Ev());
   ret->name = a->name;
-  for(auto i:a->ch) {
+  for(auto const& i:a->ch) {
     ret->ch.push_back(ev_copy(i));
   }
   return ret;
@@ -226,7 +226,7 @@ Ev_p ev_copy(Ev_p a) {
 
 int ev_size(Ev_p a) {
   int ret = 1;
-  for(auto x:a->ch) {
+  for(auto const& x:a->ch) {
     ret += ev_size(x);
   }
   return ret;
@@ -239,7 +239,7 @@ Ev_p ev_select(Ev_p a, int ind) {
     return a;
   } else {
     ind -= 1;
-    for(auto i:a->ch) {
+    for(auto const& i:a->ch) {
       if(ind < ev_size(i)) {
         return ev_select(i, ind);
       }
@@ -259,7 +259,7 @@ Ev_p ev_inp(Ev_p a, Ev_p b, int n) {
     Ev_p ret = std::make_shared<Ev>(Ev());
     ret->name = a->name;
     n = n-1;
-    for(auto i:a->ch) {
+    for(auto const& i:a->ch) {
        ret->ch.push_back(ev_inp(i, b, n));
 	   n = n - ev_size(i);
     }
@@ -312,11 +312,11 @@ double ev_eval_sub(Ev_p a, ev_env& ev_t) {
   }
 }
 
-double ev_eval(Ev_p a, taas::board& b) {  
+double ev_eval(Ev_p a, const taas::board& b) {  
   ev_env t {
 	{ev_name::e_0, 0}, {ev_name::e_1, 0}, {ev_name::e_2, 2}, {ev_name::e_3, 3}, {ev_name::e_4, 4}, {ev_name::e_5, 5}, {ev_name::e_6, 6}, {ev_name::e_7, 7}, {ev_name::e_8, 8}, {ev_name::e_9, 9}, {ev_name::e_b0, b[0][0]}, {ev_name::e_b1, b[0][1]}, {ev_name::e_b2, b[0][2]}, {ev_name::e_b3, b[0][3]}, {ev_name::e_b4, b[1][0]}, {ev_name::e_b5, b[1][1]}, {ev_name::e_b6, b[1][2]}, {ev_name::e_b7, b[1][3]}, {ev_name::e_b8, b[2][0]}, {ev_name::e_b9, b[2][1]}, {ev_name::e_b10, b[2][2]}, {ev_name::e_b11, b[2][3]}, {ev_name::e_b12, b[3][0]}, {ev_name::e_b13, b[3][1]}, {ev_name::e_b14, b[3][2]}, {ev_name::e_b15, b[3][3]}};
 
-  for(auto pev: ev_primitive_table) {
+  for(auto const& pev: ev_primitive_table) {
 	double evv = pev.second(b);
 	assert(evv != -std::numeric_limits<double>::infinity());
 	t[pev.first] = evv;
@@ -327,7 +327,7 @@ double ev_eval(Ev_p a, taas::board& b) {
 
 std::string ev_show(Ev_p a) {
   std::string ret = "(" + ev_name_str[static_cast<int>(a->name)];
-  for(auto i:a->ch) {
+  for(auto const& i:a->ch) {
     ret += " " + ev_show(i);
   }
   return ret + ")";
@@ -392,7 +392,7 @@ std::uint64_t ev_hash(Ev_p a) {
     tmp *= static_cast<int>(ev_name::size);
     tmp += static_cast<int>(b->name);
 
-    for(auto v:b->ch) {
+    for(auto const& v:b->ch) {
       Q.push(v);
     }
 
@@ -406,12 +406,14 @@ std::uint64_t ev_hash(Ev_p a) {
   return ret ^ tmp;
 }
 
+#pragma mark - alpha beta
+
 double guessN(taas::board &b1, Ev_p evf, int n=4, bool player=true, double a = -std::numeric_limits<double>::infinity(), double b=std::numeric_limits<double>::infinity()) {
   if(n == 0)
     return ev_eval(evf, b1);
     
   if(player) {
-    for(auto d:{0,1,2,3}) {
+    for(auto const& d:{0,1,2,3}) {
       taas::board b2; 
 	  taas::mov(b1, b2, d);
       double atmp = guessN(b2, evf, n-1, not player, a, b);
@@ -421,8 +423,8 @@ double guessN(taas::board &b1, Ev_p evf, int n=4, bool player=true, double a = -
     }
     return a;
   } else {
-    for(auto ind: taas::hole(b1)) {
-      for(auto v:{2,4}) {
+    for(auto const& ind: taas::hole(b1)) {
+      for(auto const& v:{2,4}) {
         taas::board b2 = b1;
         b2[ind.first][ind.second] = v;
         double btmp = guessN(b2, evf, n-1, not player, a, b);
@@ -481,6 +483,105 @@ int run2048(Ev_p evf, bool show=true) {
    }
    return a.score;
 }
+
+#pragma mark - avg guess
+
+using ev_cache = std::unordered_map<std::size_t, double>;
+
+double guess_avg_sub(const taas::board& b, Ev_p evf, int n, ev_cache& ca) {
+  if(n == 0) {
+	auto h = std::hash<taas::board>()(b);
+	auto it = ca.find(h);
+	if(it == ca.end()) {
+	  auto e = ev_eval(evf, b);
+#     pragma omp critical
+      {
+		ca.emplace(h, e);
+	  }
+	  return e;
+	} else {
+	 return it->second;
+	}
+  }
+
+  std::array<std::unordered_set<taas::board>, 4> nbs;
+
+  for(auto const& ind: taas::hole(b)) {
+	for(auto const& v:{2,4}) {
+	  taas::board b2 = b;
+	  b2[ind.first][ind.second] = v;
+
+	  for(int d = 0; d < 4; d++) {
+		taas::board b3;
+		taas::mov(b2, b3, d);
+		if(b2 != b3)
+		  nbs[d].insert(b2);
+	  }
+	}
+  } 
+
+  double ret = 0;
+  for(auto& bs:nbs) {
+    double score_sum = 0;
+	int count = 0;
+	for(const taas::board& bn:bs) {
+	  score_sum += guess_avg_sub(bn, evf, n-1, ca);
+	  count++;
+	}
+    ret += score_sum / count / 4;
+  }
+  return ret;
+}
+
+double guess_avg(taas::board& b, Ev_p evf, int n, ev_cache& ca) {
+  double score = -std::numeric_limits<double>::infinity();
+  int dir = -1;
+# pragma omp parallel for shared(ca)
+  for(int i = 0; i < 4; i++) {
+    taas::board b2;
+	taas::mov(b, b2, i);
+    if(b2 != b) {
+      double scoret = guess_avg_sub(b2, evf, n, ca);
+#     pragma omp critical
+      {
+        if(scoret > score) {
+          score = scoret;
+          dir = i;
+        }
+      }
+    }
+  }
+  assert(dir != -1);
+  return dir;
+}
+
+int run2048_avg(Ev_p evf, bool show=true) {
+   taas::Local a;
+   ev_cache ca;
+   try {
+     while(not a.over) {
+       int d = guess_avg(a.b, evf, 4, ca);
+       if(show) {
+         std::cout << d << "(" << ca.size() << ")" << std::endl;
+         taas::pb(a.b);
+       }
+       a.move(d);
+	   assert(a.moved);
+     }
+   }catch(const std::exception& e) {
+	 std::cout << e.what() << std::endl;
+     return 0;
+   }
+   if(show) {
+	 std::cout << std::endl;
+	 taas::pb(a.b);
+	 std::cout << "score:" << a.score << std::endl;
+   }
+   return a.score;
+}
+
+
+#pragma mark - gene
 
 void addgene(Ev_p a, std::vector<Ev_p>& list, std::set<std::uint64_t>& hash){
   std::uint64_t h = ev_hash(a);
@@ -565,7 +666,7 @@ void grown(std::vector<Ev_p> evs={}, const std::string log_dir = {}, const int C
   std::vector<double > act_w = {0.2, 0.75,  0.05};
   bool dolog = not log_dir.empty();
 
-  for(auto v:evs) {
+  for(auto const& v:evs) {
     hashs.insert(ev_hash(v));
     gene.push_back(v);
     weight.push_back(1.0/CHILD_MAX);
@@ -599,12 +700,12 @@ void grown(std::vector<Ev_p> evs={}, const std::string log_dir = {}, const int C
       case 1:
         a = taas::rwc(gene, weight, g);
         b = taas::rwc(gene, weight, g);
-		for(auto x:ev_cross1(a, b, g))
+		for(auto const& x:ev_cross1(a, b, g))
 		  addgene(x, gene2, hashs2);
         break;
       case 2:
         a = taas::rwc(gene, weight, g);
-		for(auto x:ev_mut(a, g))
+		for(auto const& x:ev_mut(a, g))
 		  addgene(x, gene2, hashs2);
         break;
       }
@@ -640,7 +741,7 @@ void grown(std::vector<Ev_p> evs={}, const std::string log_dir = {}, const int C
         weight.push_back(score);
 		
 		flog << ev_show(gene2[i]);
-		for(auto x:scores) 
+		for(auto const& x:scores) 
 		  flog << "," << x;
 		flog << std::endl;
       }
@@ -649,6 +750,8 @@ void grown(std::vector<Ev_p> evs={}, const std::string log_dir = {}, const int C
     analyze(gene, weight, score_sum);
   }
 }
+
+#pragma mark - main
 
 std::vector<Ev_p> read_ev(const char* path) {
   std::ifstream ifs(path);
@@ -710,7 +813,7 @@ int main(int argc, char *argv[]) {
 	run2048(ev_gen());
 	break;
   case 2:
-	run2048(ev_parse(evstr));
+	run2048_avg(ev_parse(evstr));
 	break;
   case 3:
 	{

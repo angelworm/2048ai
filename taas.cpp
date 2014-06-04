@@ -112,8 +112,8 @@ void taas::inp(board &b, const std::vector<int>& data, const std::vector<double>
 
 int taas::score(const board& b) {
   int ret = 0;
-  for(auto l:b) {
-    for(auto x:l) {
+  for(const auto& l:b) {
+    for(const auto& x:l) {
       ret += x * std::log(x) / std::log(2);
     }
   }
@@ -122,9 +122,9 @@ int taas::score(const board& b) {
 
 bool taas::over(const board& b) {
   int yb[] = {0,0,0,0};           
-  for(auto l:b) {
+  for(const auto& l:b) {
     int xb = 0, i = 0;
-    for(auto x:l) {
+    for(const auto& x:l) {
       if(x == 0)  return false;
       if(xb == x) return false;
       if(yb[i] == x) return false;
@@ -137,8 +137,8 @@ bool taas::over(const board& b) {
 }
 
 void taas::pb(const board& b) {
-  for(auto l:b) {
-    for(auto x:l) {
+  for(const auto& l:b) {
+    for(const auto& x:l) {
       std::cout << x << ' ';
     }
     std::cout << std::endl;
