@@ -460,8 +460,8 @@ int guess(taas::board& b, Ev_p ev, int n=4) {
   return dir;
 }
  
-int run2048(Ev_p evf, bool show=true) {
-   taas::Local a;
+template<class API>
+int run2048(API& a, Ev_p evf, bool show=true) {
    try {
      while(not a.over) {
        int d = guess(a.b, evf, 2);
@@ -516,7 +516,7 @@ double guess_avg_sub(const taas::board& b, Ev_p evf, int n, ev_cache& ca) {
 		taas::board b3;
 		taas::mov(b2, b3, d);
 		if(b2 != b3)
-		  nbs[d].insert(b2);
+		  nbs[d].insert(b3);
 	  }
 	}
   } 
@@ -539,10 +539,11 @@ double guess_avg(taas::board& b, Ev_p evf, int n, ev_cache& ca) {
   int dir = -1;
 # pragma omp parallel for shared(ca)
   for(int i = 0; i < 4; i++) {
+	ev_cache ca2;
     taas::board b2;
 	taas::mov(b, b2, i);
     if(b2 != b) {
-      double scoret = guess_avg_sub(b2, evf, n, ca);
+      double scoret = guess_avg_sub(b2, evf, n, ca2);
 #     pragma omp critical
       {
         if(scoret > score) {
@@ -556,12 +557,12 @@ double guess_avg(taas::board& b, Ev_p evf, int n, ev_cache& ca) {
   return dir;
 }
 
-int run2048_avg(Ev_p evf, bool show=true) {
-   taas::Local a;
+template<class API>
+int run2048_avg(API& a, Ev_p evf, bool show=true) {
    ev_cache ca;
    try {
      while(not a.over) {
-       int d = guess_avg(a.b, evf, 4, ca);
+       int d = guess_avg(a.b, evf, 1, ca);
        if(show) {
          std::cout << d << "(" << ca.size() << ")" << std::endl;
          taas::pb(a.b);
@@ -722,7 +723,8 @@ void grown(std::vector<Ev_p> evs={}, const std::string log_dir = {}, const int C
       std::array<int, 10> scores;
       int score = 0;
       for(int j = 0; j < 10; j++) {
-        scores[j] = run2048(gene2[i], false);
+		taas::Local a;
+        scores[j] = run2048(a, gene2[i], false);
 		if(scores[j] == 0) break;
       }
 
@@ -774,9 +776,10 @@ int main(int argc, char *argv[]) {
   std::string output_dir;
   std::vector<Ev_p> ev_log;
   std::string evstr;
+  char serv[500] = {'\0'}; int port = -1;
   srand(time(NULL));
 
-  while((result=getopt(argc,argv,"hrtd:i:e:")) != -1){
+  while((result=getopt(argc,argv,"hrtd:i:e:a:")) != -1){
     switch(result){
 	case 'r': // random run mode
 	  mode = 1;
@@ -794,12 +797,19 @@ int main(int argc, char *argv[]) {
 	  mode = 2;
 	  evstr = optarg;
 	  break;
+	case 'a': // API mode
+	  std::sscanf(optarg, "%[^:]:%d", serv, &port);
+	  std::cout << serv << ":" << port << std::endl;
+	  break;
 	case 'h':
     case '?':
 	  std::cout << "useage: gp [opt]" << std::endl;
 	  std::cout << "\t-h: this option" << std::endl;
 	  std::cout << "\t-s: single run mode(default: grown mode)" << std::endl;
 	  std::cout << "\t-t: test run mode(default: grown mode)" << std::endl;
+	  std::cout << "\t-r: random run mode(default: grown mode)" << std::endl;
+	  std::cout << "\t-e ev: ev eval run mode(default: grown mode)" << std::endl;
+	  std::cout << "\t-a serv:port: 2048 as a service mode(default: Local mode)" << std::endl;
 	  std::cout << "\t-d dir: generations writes into dir(default: none)" << std::endl;
 	  std::cout << "\t-i file: read genes files as seed" << std::endl;
 	  return -1;
@@ -811,10 +821,22 @@ int main(int argc, char *argv[]) {
 	grown(ev_log, output_dir);
 	break;
   case 1:
-	run2048(ev_gen());
+	if(port == -1) {
+	  taas::Local a;
+	  run2048(a, ev_gen());
+	} else {
+	  taas::API a(std::string(serv), port);
+	  run2048(a, ev_gen());
+	}
 	break;
   case 2:
-	run2048_avg(ev_parse(evstr));
+	if(port == -1) {
+	  taas::Local a;
+	  run2048_avg(a, ev_parse(evstr));
+	} else {
+	  taas::API a(std::string(serv), port);
+	  run2048_avg(a, ev_parse(evstr));
+	}
 	break;
   case 3:
 	{

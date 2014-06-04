@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
+#include "picojson.h"
 
 namespace taas {
   using board = std::array<std::array<int, 4>, 4>;
@@ -40,10 +42,32 @@ namespace taas {
     virtual bool move(int d);
 
     board b;
-    int score = 0;
+    int score;
     bool over, moved;
     std::mt19937 g;
   };
+
+  class API {
+  public:
+    API() = delete;
+	API(std::string serv, int port);
+
+    virtual ~API() = default;
+    API(API const&) = default;
+    API(API&&) = default;
+    API& operator =(API const&) = default;
+    API& operator =(API&&) = default;
+	
+
+    virtual bool move(int d);
+	picojson::value js_get(std::string path);
+
+    board b;
+    int score, port;
+    bool over, moved;
+	std::string serv, session;
+  };
+
 }
 
 namespace std {

@@ -3,8 +3,16 @@
 #include <cstdlib>
 #include <memory>
 #include <cassert>
-#include "taas.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <sstream>
+#include <regex>
 
+#include "taas.h"
+#include "picojson.h"
 static taas::board nullboard{{{{0,0,0,0}}, {{0,0,0,0}}, {{0,0,0,0}}, {{0,0,0,0}}}};
 
 using namespace taas;
@@ -166,4 +174,93 @@ bool taas::Local::move(int d) {
   inp(this->b, v, p, this->g);
   this->over = taas::over(this->b);
   return this->moved;
+}
+
+taas::API::API(std::string serv, int port)
+  :over(false), moved(false), score(0), b(nullboard), serv(serv), port(port) {
+  auto json = js_get(std::string("/hi/start/json"));
+  const auto& obj = json.get<picojson::object>();
+  this->session = obj.at("session_id").get<std::string>();
+
+  auto jb = obj.at("grid").get<picojson::array>();
+  for(int y = 0; y < 4; y++) {
+	for(int x = 0; x < 4; x++) {
+	  this->b[y][x] = jb[y].get<picojson::array>()[x].get<double>();
+	}
+  }
+}
+
+bool taas::API::move(int d) {
+  std::stringstream ss;
+  ss << "/hi/state/" << this->session << "/move/" << d << "/json";
+
+  auto json = this->js_get(ss.str());
+  const auto& obj = json.get<picojson::object>();
+
+
+  const auto& jb = obj.at("grid").get<picojson::array>();
+  for(int y = 0; y < 4; y++) {
+	for(int x = 0; x < 4; x++) {
+	  this->b[y][x] = jb[y].get<picojson::array>()[x].get<double>();
+	}
+  }
+  this->score = obj.at("score").get<double>();
+  this->moved = obj.at("moved").get<bool>();
+  this->over = obj.at("over").get<bool>();
+  return this->moved;
+}
+
+picojson::value taas::API::js_get(std::string path) {
+  int sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if(sock < 0){
+    throw std::runtime_error(std::strerror(errno));
+  }
+
+  struct sockaddr_in addr;
+  struct hostent *servhost = gethostbyname(this->serv.c_str());
+
+  memset(static_cast<void *>(&addr), 0, sizeof(struct sockaddr_in));
+  addr.sin_family = AF_INET;
+  bcopy(servhost->h_addr, &addr.sin_addr, servhost->h_length);
+  addr.sin_port = htons(this->port == 0 ? 8080 : this->port);
+
+  if(connect(sock, (struct sockaddr *)&addr, sizeof(addr)) == -1 ) {
+	throw std::runtime_error(std::strerror(errno));
+  }
+  
+  std::string data;
+  std::stringstream ss;
+
+  ss << "GET " << path << " HTTP/1.0" << "\r\n\r\n"; 
+  //  ss << "HOST " << serv  << ":" << port << "\r\n\r\n"; 
+  std::string msg = ss.str();
+  write(sock, msg.c_str(), msg.size()+1);
+
+  while(true) {
+	char buf[1024];
+	int size = read(sock, buf, 1024);
+	if(size <= 0) break;
+	data += std::string(buf, buf + size);
+  }
+
+  close(sock);
+
+  if(data.find("Location: ") != std::string::npos) {
+	auto ia = data.find("Location: ");
+	auto ib = data.find("\r\n", ia);
+	std::string cont = data.substr(ia + 10, ib - (ia + 10));
+
+	std::cout << "moved: " << cont << std::endl;
+	return this->js_get(cont);
+  } else{
+	picojson::value v;
+	std::string err;
+
+	std::string cont = data.substr(data.find("\r\n\r\n")+4);
+
+	std::cout << cont << std::endl;
+	picojson::parse(v, cont.begin(), cont.end(), &err);
+	if(not err.empty()) throw std::runtime_error(err);
+	return v;
+  }
 }
