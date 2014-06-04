@@ -489,8 +489,9 @@ int run2048(Ev_p evf, bool show=true) {
 using ev_cache = std::unordered_map<std::size_t, double>;
 
 double guess_avg_sub(const taas::board& b, Ev_p evf, int n, ev_cache& ca) {
+  static std::hash<taas::board> hash;
   if(n == 0) {
-	auto h = std::hash<taas::board>()(b);
+	auto h = hash(b);
 	auto it = ca.find(h);
 	if(it == ca.end()) {
 	  auto e = ev_eval(evf, b);
@@ -528,7 +529,7 @@ double guess_avg_sub(const taas::board& b, Ev_p evf, int n, ev_cache& ca) {
 	  score_sum += guess_avg_sub(bn, evf, n-1, ca);
 	  count++;
 	}
-    ret += score_sum / count / 4;
+    ret = std::fmax(ret, score_sum / count);
   }
   return ret;
 }
