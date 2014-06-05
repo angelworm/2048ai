@@ -407,16 +407,28 @@ std::uint64_t ev_hash(Ev_p a) {
 }
 
 #pragma mark - alpha beta
+using ev_cache = std::unordered_map<std::size_t, double>;
 
-double guessN(taas::board &b1, Ev_p evf, int n=4, bool player=true, double a = -std::numeric_limits<double>::infinity(), double b=std::numeric_limits<double>::infinity()) {
-  if(n == 0)
-    return ev_eval(evf, b1);
+double guessN(taas::board &b1, Ev_p evf, ev_cache& ca, int n=4, bool player=true, double a = -std::numeric_limits<double>::infinity(), double b=std::numeric_limits<double>::infinity()) {
+  static std::hash<taas::board> hash;
+  if(n == 0) {
+	auto h = hash(b1);
+	auto it = ca.find(h);
+	if(it == ca.end()) {
+	  auto e = ev_eval(evf, b1);
+	  ca.emplace(h, e);
+	  return e;
+	} else {
+	  return it->second;
+	}
+  }
+
     
   if(player) {
     for(auto const& d:{0,1,2,3}) {
       taas::board b2; 
 	  taas::mov(b1, b2, d);
-      double atmp = guessN(b2, evf, n-1, not player, a, b);
+      double atmp = guessN(b2, evf, ca, n-1, not player, a, b);
       a = std::fmax(a, atmp);
       if(a >= b)
         return b;
@@ -427,7 +439,7 @@ double guessN(taas::board &b1, Ev_p evf, int n=4, bool player=true, double a = -
       for(auto const& v:{2,4}) {
         taas::board b2 = b1;
         b2[ind.first][ind.second] = v;
-        double btmp = guessN(b2, evf, n-1, not player, a, b);
+        double btmp = guessN(b2, evf, ca, n-1, not player, a, b);
         b = std::fmin(b, btmp);
         if(a >= b) {
           return a;
@@ -444,9 +456,10 @@ int guess(taas::board& b, Ev_p ev, int n=4) {
 # pragma omp parallel for
   for(int i = 0; i < 4; i++) {
     taas::board b2;
+	ev_cache ca;
 	taas::mov(b, b2, i);
     if(b2 != b) {
-      double scoret = guessN(b2, ev, n, false);
+      double scoret = guessN(b2, ev, ca, n, false);
 #     pragma omp critical
       {
         if(scoret > score) {
@@ -464,7 +477,7 @@ template<class API>
 int run2048(API& a, Ev_p evf, bool show=true) {
    try {
      while(not a.over) {
-       int d = guess(a.b, evf, 2);
+       int d = guess(a.b, evf, 7);
        if(show) {
          std::cout << d << std::endl;
          taas::pb(a.b);
@@ -486,7 +499,7 @@ int run2048(API& a, Ev_p evf, bool show=true) {
 
 #pragma mark - avg guess
 
-using ev_cache = std::unordered_map<std::size_t, double>;
+int hit = 0;
 
 double guess_avg_sub(const taas::board& b, Ev_p evf, int n, ev_cache& ca) {
   static std::hash<taas::board> hash;
@@ -495,13 +508,11 @@ double guess_avg_sub(const taas::board& b, Ev_p evf, int n, ev_cache& ca) {
 	auto it = ca.find(h);
 	if(it == ca.end()) {
 	  auto e = ev_eval(evf, b);
-#     pragma omp critical
-      {
-		ca.emplace(h, e);
-	  }
+	  ca.emplace(h, e);
 	  return e;
 	} else {
-	 return it->second;
+	  hit++;
+	  return it->second;
 	}
   }
 
@@ -521,25 +532,31 @@ double guess_avg_sub(const taas::board& b, Ev_p evf, int n, ev_cache& ca) {
 	}
   } 
 
-  double ret = 0;
-  for(auto& bs:nbs) {
-    double score_sum = 0;
-	int count = 0;
-	for(const taas::board& bn:bs) {
-	  score_sum += guess_avg_sub(bn, evf, n-1, ca);
-	  count++;
+  if(std::all_of(nbs.begin(), nbs.end(), [](const std::unordered_set<taas::board>& x){return x.empty();})) {
+	return guess_avg_sub(b, evf, 0, ca);
+  } else {
+	double ret = 0;
+	for(auto& bs:nbs) {
+	  double score_sum = 0;
+	  int count = 0;
+	  for(const taas::board& bn:bs) {
+		score_sum += guess_avg_sub(bn, evf, n-1, ca);
+		count++;
+	  }
+	  ret = std::fmax(ret, score_sum / count);
 	}
-    ret = std::fmax(ret, score_sum / count);
+	return ret;
   }
-  return ret;
 }
 
-double guess_avg(taas::board& b, Ev_p evf, int n, ev_cache& ca) {
+double guess_avg(taas::board& b, Ev_p evf, int n, ev_cache& ca, bool show=false) {
   double score = -std::numeric_limits<double>::infinity();
+  std::array<double, 4> da;
   int dir = -1;
-# pragma omp parallel for shared(ca)
+
+# pragma omp parallel for
   for(int i = 0; i < 4; i++) {
-	ev_cache ca2;
+	ev_cache ca2(ca);
     taas::board b2;
 	taas::mov(b, b2, i);
     if(b2 != b) {
@@ -549,10 +566,28 @@ double guess_avg(taas::board& b, Ev_p evf, int n, ev_cache& ca) {
         if(scoret > score) {
           score = scoret;
           dir = i;
+		  da[i] = scoret;
         }
+		/*
+		for(const auto &x:ca2) {
+		  if(ca.find(x.first) == ca.end()) {
+			ca.emplace(x);
+		  }
+		}
+		*/
       }
     }
   }
+
+  if(show) {
+	std::array<char, 4> a{{'^', '>', 'v', '<'}};
+	std::cout << "dir: " << a[dir] << " /";
+	for(auto& x:da) {
+	  std::cout << "\t" << x;
+	}
+	std::cout << std::endl;
+  }
+  
   assert(dir != -1);
   return dir;
 }
@@ -562,9 +597,9 @@ int run2048_avg(API& a, Ev_p evf, bool show=true) {
    ev_cache ca;
    try {
      while(not a.over) {
-       int d = guess_avg(a.b, evf, 1, ca);
+       int d = guess_avg(a.b, evf, 3, ca, show);
        if(show) {
-         std::cout << d << "(" << ca.size() << ")" << std::endl;
+         std::cout << d << "(" << ca.size() << "/" << hit << ")" << std::endl;
          taas::pb(a.b);
        }
        a.move(d);
@@ -666,7 +701,6 @@ void grown(std::vector<Ev_p> evs={}, const std::string log_dir = {}, const int C
 
   std::vector<int> act = {0, 1, 2};
   std::vector<double > act_w = {0.2, 0.75,  0.05};
-  bool dolog = not log_dir.empty();
 
   for(auto const& v:evs) {
     hashs.insert(ev_hash(v));

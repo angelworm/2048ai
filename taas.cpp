@@ -205,6 +205,7 @@ bool taas::API::move(int d) {
 	}
   }
   this->score = obj.at("score").get<double>();
+  this->session = obj.at("session_id").get<std::string>();
   this->moved = obj.at("moved").get<bool>();
   this->over = obj.at("over").get<bool>();
   return this->moved;
@@ -258,7 +259,6 @@ picojson::value taas::API::js_get(std::string path) {
 
 	std::string cont = data.substr(data.find("\r\n\r\n")+4);
 
-	std::cout << cont << std::endl;
 	picojson::parse(v, cont.begin(), cont.end(), &err);
 	if(not err.empty()) throw std::runtime_error(err);
 	return v;
