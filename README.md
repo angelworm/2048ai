@@ -56,3 +56,9 @@ http://angelworm.hatenablog.com/entry/2014/06/07/024027
 本来はsupercalifragilisticexpialidociousという名前のAIになるはずだったもの。評価関数プレイヤー。
 
 A/B法やめてもっと深読みすりゃいーじゃんと考えて手で実装したら死んだ。
+
+
+ライセンス
+----------
+
+良きに計らえ。俺を立てろ。
